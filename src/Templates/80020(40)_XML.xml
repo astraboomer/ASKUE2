@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="windows-1251" standalone="yes"?>
+<message class="maket" version="version" number="number">
+<datetime>
+<timestamp>datetime</timestamp>
+<daylightsavingtime>daylightsavingtime</daylightsavingtime>
+<day>date</day>
+</datetime>
+<sender>
+<inn>our_inn</inn>
+<name>our_name</name>
+</sender>
+<area>
+<inn>their_inn</inn>
+<name>their_name</name>
+</area>
+</message>

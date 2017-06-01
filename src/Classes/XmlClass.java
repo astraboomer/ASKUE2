@@ -138,6 +138,7 @@ public abstract class XmlClass {
         return validFileList;
     }
 
+    // метод получает и возвращает DOM xml-документ из объекта
     protected Document getXmlDoc() {
         DocumentBuilderFactory dbf;
         DocumentBuilder db;
@@ -165,35 +166,7 @@ public abstract class XmlClass {
         return xmlDoc;
     }
 
-    public static Document loadTemplate (File file) {
-        DocumentBuilderFactory dbf;
-        DocumentBuilder db;
-        Document xmlDoc = null;
-        try {
-            dbf = DocumentBuilderFactory.newInstance();
-            dbf.setIgnoringElementContentWhitespace(true);
-            dbf.setNamespaceAware(true);
-            db  = dbf.newDocumentBuilder();
-            xmlDoc = db.parse(file);
-        }
-        catch (FileNotFoundException e1) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText("Невозможно создать макет. Файл шаблона " +
-                    file.getAbsolutePath() + " отсутствует.");
-            alertWindow.showAndWait();
-        }
-        catch (Exception e2) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText(e2.getMessage());
-            alertWindow.showAndWait();
-        }
-        return xmlDoc;
-    }
-
+    // метод возвращает строку текущего времени в формате yyyyMMddHHmmss
     public static String getCurrentDateTime() {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
         return simpleDateFormat.format(new Date());

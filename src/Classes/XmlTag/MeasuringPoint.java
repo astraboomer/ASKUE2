@@ -8,16 +8,13 @@ import java.util.List;
 
 /**
  * Created by Сергей on 10.05.2017.
+ * Класс, описывающий точку измерения (ТИ)
  */
 public class MeasuringPoint {
-    private String code;
-    private List<MeasuringChannel> measChannelList;
-    private BooleanProperty selected = new SimpleBooleanProperty(true);
-    private ReadOnlyStringWrapper name = new ReadOnlyStringWrapper();
-
-    /*public MeasuringPoint () {
-        this.setSelected(true);
-    }*/
+    private String code; // код ТИ
+    private List<MeasuringChannel> measChannelList; // список каналов этой ТИ
+    private BooleanProperty selected = new SimpleBooleanProperty(true); // свойство выбранности
+    private ReadOnlyStringWrapper name = new ReadOnlyStringWrapper(); // имя ТИ
 
     public BooleanProperty selectedProperty() {
         return selected;
@@ -43,7 +40,6 @@ public class MeasuringPoint {
 
     public void setName(String name) {
         this.name.set(name);
-        //this.setText(name);
     }
 
     public List<MeasuringChannel> getMeasChannelList() {

@@ -2,6 +2,7 @@ package Classes;
 
 import Classes.XmlTag.*;
 import Controllers.MainWindowController;
+import Controllers.SettingsWindowController;
 import javafx.scene.control.Alert;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
@@ -25,7 +26,6 @@ public class XML80020 extends XmlClass {
     public List<Area> getAreaList() {
         return areaList;
     }
-
     public XML80020(File file) {
         super(file);
     }
@@ -200,6 +200,7 @@ public class XML80020 extends XmlClass {
         return result;
     }
 
+    // загружаем данные из текущего xml-файла
     public void loadDataFromXML() {
         // получаем xml-документ в случае успешного разбора xml-файла
         // заполнение полей класса данными из xml-документа
@@ -212,38 +213,55 @@ public class XML80020 extends XmlClass {
         setAreaList(xmlDoc);
     }
 
-    public void saveDataToXML() {
+    // сохраняем данные с новыми параметрами
+    public void saveDataToXML(String senderName, String senderINN, String areaName, String areaINN,
+                              String messVersion, String messNumber, String newDLSavingTime, String senderAIIS) {
         File template = new File(System.getProperty("user.dir")+"/src/Templates/80020(40)_XML.xml");
-        String number = "1000";
-        String timestamp = getCurrentDateTime();
-        String orgName = "Астраханская энергосбытовая компания";
-        String inn = "3017041554";
-        String aiisCode = "3000000702";
-
-        Document xmlNewDoc = XML80020.loadTemplate(template);
-        if (xmlNewDoc == null)
+        Document xmlNewDoc;
+        // получаем xmlNewDoc из файла шаблона
+        try {
+            xmlNewDoc = XmlUtil.getXmlDoc(template);
+        }
+        // если не удалось получить xmlNewDoc, то выходим из метода
+        catch (FileNotFoundException e1) {
+            XmlClass.alertWindow.setAlertType(Alert.AlertType.ERROR);
+            XmlClass.alertWindow.setTitle("Ошибка");
+            XmlClass.alertWindow.setHeaderText(null);
+            XmlClass.alertWindow.setContentText("Данные не сохранены! Отсутствует файл шаблона: " +
+                    template.getAbsolutePath());
+            XmlClass.alertWindow.showAndWait();
             return;
+        }
+        catch (Exception e2) {
+            XmlClass.alertWindow.setAlertType(Alert.AlertType.ERROR);
+            XmlClass.alertWindow.setTitle("Ошибка");
+            XmlClass.alertWindow.setHeaderText(null);
+            XmlClass.alertWindow.setContentText(e2.getLocalizedMessage());
+            XmlClass.alertWindow.showAndWait();
+            return;
+        }
         // удаляем все пустые текстовые узлы дерева
         XmlUtil.removeWhitespaceNodes(xmlNewDoc.getDocumentElement());
 
         // заносим новые значения атрибутов корневого узла message
         xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("class").setNodeValue(getMessage().
                 getMessageClass());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").setNodeValue(getMessage().
-        getVersion());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").setNodeValue(number);
+        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").setNodeValue(messVersion);
+        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
+                setNodeValue(messNumber);
 
         // заносим новые значения узлов
-        xmlNewDoc.getDocumentElement().getElementsByTagName("timestamp").item(0).setTextContent(timestamp);
+        xmlNewDoc.getDocumentElement().getElementsByTagName("timestamp").item(0).
+                setTextContent(XML80020.getCurrentDateTime());
         xmlNewDoc.getDocumentElement().getElementsByTagName("daylightsavingtime").item(0).
-                setTextContent(this.getDateTime().getDaylightSavingTime());
-        xmlNewDoc.getDocumentElement().getElementsByTagName("day").item(0).setTextContent(getDateTime().
-                getDay());
+                setTextContent(newDLSavingTime);
+        xmlNewDoc.getDocumentElement().getElementsByTagName("day").item(0).
+                setTextContent(getDateTime().getDay());
 
         // заносим новые значения узлов
         Node sender = xmlNewDoc.getDocumentElement().getElementsByTagName("sender").item(0);
-        sender.getChildNodes().item(0).setTextContent(inn);
-        sender.getChildNodes().item(1).setTextContent(orgName);
+        sender.getChildNodes().item(0).setTextContent(senderINN);
+        sender.getChildNodes().item(1).setTextContent(senderName);
 
         // из первой area берем значение timezone (хоть бы одна area всегда есть в документе)
         String timeZone = this.getAreaList().get(0).getTimeZone();
@@ -255,8 +273,8 @@ public class XML80020 extends XmlClass {
             Element element = (Element) areaNode;
             element.setAttribute("timezone", timeZone);
         }
-        areaNode.getChildNodes().item(0).setTextContent(inn);
-        areaNode.getChildNodes().item(1).setTextContent("Kalmyki");
+        areaNode.getChildNodes().item(0).setTextContent(areaINN);
+        areaNode.getChildNodes().item(1).setTextContent(areaName);
 
         // перебираем все measurepoint-ы и если есть отмеченный, то смотрим его measurechannel-ы
         for (Area area : this.getAreaList()) {
@@ -281,8 +299,11 @@ public class XML80020 extends XmlClass {
             }
         }
         // под этим именем сохраняем файл
-        String outFileName = this.getMessage().getMessageClass() + "_" + inn +"_" + this.getDateTime().getDay() +
-                "_" + number + "_" + aiisCode + ".xml";
+        String outFileName = this.getMessage().getMessageClass() + "_" +
+                senderINN +"_" +
+                this.getDateTime().getDay() + "_" +
+                messNumber + "_" +
+                senderAIIS + ".xml";
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
             XmlUtil.saveXMLDoc(xmlNewDoc, outFileName, "windows-1251", true);

@@ -14,6 +14,7 @@ import java.awt.*;
 /**
  * Created by Сергей on 10.05.2017.
  */
+//
 public class MeasuringChannel extends CheckBox {
     private String code;
     private boolean isCommercialInfo = true;

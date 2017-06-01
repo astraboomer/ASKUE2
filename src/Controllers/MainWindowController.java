@@ -12,10 +12,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -44,15 +41,22 @@ public class MainWindowController {
     public Label labelMeasPointCode;
     public Button btnMake80020;
     public Button btnMakeXLS;
+    public TextField textViewAIIS;
+    public ChoiceBox choiceBoxAreaName;
     private List<File> fileList = new ArrayList<>();
     private XML80020 xml8020;
     private Stage settingsStage = new Stage();
+    private SettingsWindowController settingsWinControl;
 
     @FXML
     public void initialize() {
         try {
             // при инициализации гл. окна программы создаем окно с настройками
-            Parent settingsWin = FXMLLoader.load(getClass().getResource("../FXML/SettingsWindow.fxml"));
+            FXMLLoader fxmlLoader = new FXMLLoader();
+            Parent settingsWin = fxmlLoader.load(getClass().getResource("../FXML/SettingsWindow.fxml").
+                    openStream());
+            settingsWinControl = fxmlLoader.getController();
+
             Scene settingsScene = new Scene(settingsWin);
             settingsStage = new Stage();
             settingsStage.setTitle("Настройки");
@@ -69,6 +73,7 @@ public class MainWindowController {
             alertWindow.showAndWait();
         }
 
+        // при выборе нового файла будет считываться информация из него (добавляется слушатель)
         filesListView.getSelectionModel().selectedItemProperty().addListener(( ov, old_value,
                                                                                new_value) -> {
             if (new_value != null) {
@@ -77,6 +82,8 @@ public class MainWindowController {
                 displayAllXMLData(fileList.get(0));
         });
 
+        // при нажатии на строку с measuringpoint-ом получаем его код и если
+        // имеется некоммерч. информация красим красным label с кодом
         measPointListView.getSelectionModel().selectedItemProperty().addListener((observable, old_value,
                                                                                   new_value) -> {
             if (new_value != null) {
@@ -102,6 +109,8 @@ public class MainWindowController {
 
         });
 
+        // устанавливаем вид строк ListView как CheckBoxListCell и
+        // указываем какой текст будет отображаться
         measPointListView.setCellFactory(CheckBoxListCell.forListView(MeasuringPoint::selectedProperty,
                 new StringConverter<MeasuringPoint>() {
                     @Override
@@ -115,18 +124,6 @@ public class MainWindowController {
                     }
 
                 }));
-
-        /*measChanelListView.setCellFactory(CheckBoxListCell.forListView(MeasuringChannel::selectedProperty,
-                new StringConverter<MeasuringChannel>() {
-                    @Override
-                    public String toString(MeasuringChannel object) {
-                        return object.getDesc();
-                    }
-                    @Override
-                    public MeasuringChannel fromString(String string) {
-                        return null;
-                    }
-                }));*/
     }
 
     // заполнение списка measuringpoint-ов
@@ -245,7 +242,23 @@ public class MainWindowController {
 
     // создание xml- файла (вызывается при нажатии на кнопку "Создать макет XML")
     public void makeXML(ActionEvent actionEvent) {
-        xml8020.saveDataToXML();
+
+        String senderName = settingsWinControl.textFieldName.getText();
+        String senderINN =  settingsWinControl.textFieldINN.getText();
+        String areaName;
+        if (choiceBoxAreaName.getSelectionModel().getSelectedItem() != null)
+            areaName = choiceBoxAreaName.getSelectionModel().getSelectedItem().toString(); else
+            areaName = "";
+        String areaINN = textViewAIIS.getText();
+        String messVersion = settingsWinControl.textFieldVersion.getText();
+        String messNumber = settingsWinControl.textFieldNumber.getText();
+        String senderAIIS = settingsWinControl.textFieldAIIS.getText();
+        String newDLSavingTime;
+        if (settingsWinControl.checkBoxWinter.isSelected())
+            newDLSavingTime = "0"; else
+            newDLSavingTime = "1";
+        xml8020.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber, newDLSavingTime,
+                senderAIIS);
     }
 
     // показ окна с настройками (вызывается при нажатии на пункт меню НАСТРОЙКИ)
@@ -259,5 +272,6 @@ public class MainWindowController {
         // т.к. его нельзя получить из MenuItem в actionEvent
         Stage stage = (Stage) btnMake80020.getScene().getWindow();
         stage.close();
+
     }
 }

@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
 
-<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="369.0" prefWidth="612.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controllers.SettingsWindowController">
+<GridPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="369.0" prefWidth="612.0" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controllers.SettingsWindowController">
   <columnConstraints>
     <ColumnConstraints hgrow="SOMETIMES" maxWidth="295.0" minWidth="10.0" prefWidth="230.0" />
     <ColumnConstraints halignment="RIGHT" hgrow="SOMETIMES" maxWidth="370.0" minWidth="10.0" prefWidth="370.0" />
@@ -85,7 +85,7 @@
             <Insets right="15.0" />
          </GridPane.margin>
       </Button>
-      <RadioButton fx:id="checkBoxWinter" mnemonicParsing="false" onAction="#selectSeasonTime" text="Зимнее время" GridPane.rowIndex="8" GridPane.valignment="TOP">
+      <RadioButton fx:id="radioButtonWinter" mnemonicParsing="false" text="Зимнее время" GridPane.rowIndex="8" GridPane.valignment="TOP">
          <padding>
             <Insets left="15.0" />
          </padding>
@@ -93,7 +93,7 @@
             <Insets top="10.0" />
          </GridPane.margin>
       </RadioButton>
-      <RadioButton fx:id="checkBoxSummer" mnemonicParsing="false" onAction="#selectSeasonTime" text="Летнее время" GridPane.rowIndex="8" GridPane.valignment="TOP">
+      <RadioButton fx:id="radioButtonSummer" mnemonicParsing="false" text="Летнее время" GridPane.rowIndex="8" GridPane.valignment="TOP">
          <GridPane.margin>
             <Insets left="15.0" top="35.0" />
          </GridPane.margin>

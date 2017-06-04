@@ -16,7 +16,7 @@
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="620.0" minWidth="840.0" prefHeight="640.0" prefWidth="840.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controllers.MainWindowController">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="620.0" minWidth="840.0" prefHeight="640.0" prefWidth="840.0" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controllers.MainWindowController">
    <children>
       <BorderPane prefHeight="400.0" prefWidth="600.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <top>
@@ -62,19 +62,19 @@
                                     <Label layoutX="198.0" layoutY="45.0" text="Субъект:" />
                                     <ChoiceBox fx:id="choiceBoxAreaName" layoutX="284.0" layoutY="35.0" prefHeight="31.0" prefWidth="487.0" />
                                     <Label layoutX="198.0" layoutY="83.0" text="Код АИИС:" />
-                                    <TextField fx:id="textViewAIIS" layoutX="283.0" layoutY="73.0" prefHeight="31.0" prefWidth="101.0" text="0123456789" />
+                                    <TextField fx:id="textViewAIIS" layoutX="283.0" layoutY="73.0" prefHeight="31.0" prefWidth="101.0" />
                                     <Button layoutX="399.0" layoutY="73.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="98.0" text="Сохранить" />
                                     <Button layoutX="519.0" layoutY="73.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="98.0" text="Удалить" />
                                     <Button fx:id="btnMake80020" disable="true" layoutX="19.0" layoutY="102.0" mnemonicParsing="false" onAction="#makeXML" text="Создать макет XML" />
                                     <Button fx:id="btnSelectAll" disable="true" layoutX="19.0" layoutY="52.0" mnemonicParsing="false" onAction="#selectAllMeasPoints" prefHeight="31.0" prefWidth="45.0" text="[ v ]" />
                                     <Button fx:id="btnUnSelectAll" disable="true" layoutX="75.0" layoutY="52.0" mnemonicParsing="false" onAction="#unSelectAllMeasPoints" prefHeight="31.0" prefWidth="45.0" text="[   ]" />
                                     <Button fx:id="btnMakeXLS" disable="true" layoutX="19.0" layoutY="151.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="152.0" text="Выгрузить в Excel" />
-                                    <RadioButton layoutX="198.0" layoutY="149.0" mnemonicParsing="false" selected="true" text="30 минут" />
-                                    <RadioButton layoutX="198.0" layoutY="173.0" mnemonicParsing="false" text="60 минут" />
+                                    <RadioButton fx:id="radioButton30Min" layoutX="198.0" layoutY="149.0" mnemonicParsing="false" selected="true" text="30 минут" />
+                                    <RadioButton fx:id="radioButton60Min" layoutX="198.0" layoutY="173.0" mnemonicParsing="false" text="60 минут" />
                                     <CheckBox layoutX="410.0" layoutY="128.0" mnemonicParsing="false" selected="true" text="Удалить пустые столбцы в Excel" />
                                     <CheckBox layoutX="410.0" layoutY="167.0" mnemonicParsing="false" text="Указывать временные интервалы" />
                                     <Label layoutY="-14.0" text="Код ТИ:" AnchorPane.bottomAnchor="202.0" AnchorPane.topAnchor="-14.0" />
-                                    <Label fx:id="labelMeasPointCode" layoutX="61.0" layoutY="-14.0" text="012345678912345" AnchorPane.bottomAnchor="202.0" AnchorPane.topAnchor="-14.0" />
+                                    <Label fx:id="labelMeasPointCode" layoutX="61.0" layoutY="-14.0" AnchorPane.bottomAnchor="202.0" AnchorPane.topAnchor="-14.0" />
                                     <Separator layoutY="26.0" prefHeight="4.0" prefWidth="811.0" />
                                     <Separator layoutX="185.0" layoutY="115.0" prefHeight="3.0" prefWidth="625.0" />
                                     <Separator layoutX="184.0" layoutY="28.0" orientation="VERTICAL" prefHeight="171.0" prefWidth="7.0" />

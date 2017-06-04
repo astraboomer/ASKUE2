@@ -5,6 +5,8 @@ import Classes.XmlClass;
 import Classes.XmlTag.Area;
 import Classes.XmlTag.MeasuringChannel;
 import Classes.XmlTag.MeasuringPoint;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -19,6 +21,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.stage.*;
 import javafx.util.StringConverter;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +31,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import static Classes.XmlClass.alertWindow;
+import static Classes.Main.slash;
+import static Classes.XmlClass.messageWindow;
 
 public class MainWindowController {
 
@@ -43,18 +49,24 @@ public class MainWindowController {
     public Button btnMakeXLS;
     public TextField textViewAIIS;
     public ChoiceBox choiceBoxAreaName;
+    public RadioButton radioButton30Min;
+    public RadioButton radioButton60Min;
     private List<File> fileList = new ArrayList<>();
     private XML80020 xml8020;
     private Stage settingsStage = new Stage();
+    // через эту переменную контроллера окна настроек будем получать
+    // доступ к элементам формы и методам класса
     private SettingsWindowController settingsWinControl;
+    //private ObservableList<MeasuringChannel> measChannelObList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
         try {
             // при инициализации гл. окна программы создаем окно с настройками
             FXMLLoader fxmlLoader = new FXMLLoader();
-            Parent settingsWin = fxmlLoader.load(getClass().getResource("../FXML/SettingsWindow.fxml").
-                    openStream());
+            Parent settingsWin = fxmlLoader.load(getClass().getResource(".." + slash + "FXML" +
+                            slash + "SettingsWindow.fxml").openStream());
+            // инициализируем переменную контроллер, через нее будем получать доступ к элементам окна настроек
             settingsWinControl = fxmlLoader.getController();
 
             Scene settingsScene = new Scene(settingsWin);
@@ -66,12 +78,13 @@ public class MainWindowController {
         }
         catch (IOException e) {
             // выводим сообщение об шибке в случае неудачи
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText(e.getMessage());
-            alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", e.getMessage(), Alert.AlertType.ERROR);
         }
+
+        // помещаем радио кнопки в одну группу выбора
+        ToggleGroup toggleGroup = new ToggleGroup();
+        radioButton30Min.setToggleGroup(toggleGroup);
+        radioButton60Min.setToggleGroup(toggleGroup);
 
         // при выборе нового файла будет считываться информация из него (добавляется слушатель)
         filesListView.getSelectionModel().selectedItemProperty().addListener(( ov, old_value,
@@ -84,29 +97,74 @@ public class MainWindowController {
 
         // при нажатии на строку с measuringpoint-ом получаем его код и если
         // имеется некоммерч. информация красим красным label с кодом
-        measPointListView.getSelectionModel().selectedItemProperty().addListener((observable, old_value,
-                                                                                  new_value) -> {
-            if (new_value != null) {
+        measPointListView.getSelectionModel().selectedItemProperty().addListener((ObservableValue observable, Object old_value, Object new_value) -> {
+            if (new_value != null) { //если выбран новый елемент measPointListView-а
                 MeasuringPoint measuringPoint = (MeasuringPoint) measPointListView.getSelectionModel().getSelectedItem();
                 labelMeasPointCode.setText(measuringPoint.getCode());
                 fillMeasChannelListView(measuringPoint);
-                int countChannels = 0;
+                int countCommerChannels = 0; // счетчик кол-ва каналов с коммер. инф-цией
+                // проверяем все measuringChannel-ы выбранного measuringPoint-а
                 for (MeasuringChannel measuringChannel: measuringPoint.getMeasChannelList()) {
-                    countChannels++;
-                    if (!measuringChannel.isCommercialInfo()) {
+                    // в пункт контекс. меню каждого measuringChannel-а добавляем слушателя выбора,
+                    // в котором меняется тип информации и цвет кода текущ. measuringPoint-а
+                    measuringChannel.getUnCommMenuItem().setOnAction(event -> {
+                        measuringChannel.setCommercialInfo(false);
+                        measuringChannel.setFont(Font.font("System", FontPosture.ITALIC, -1));
+                        for (Area area: xml8020.getAreaList()) {
+                            for (Node measPointNode: area.getMeasPointNodeList()) {
+
+                                if (measPointNode.getAttributes().getNamedItem("code").getNodeValue().
+                                        equals(measuringPoint.getCode())) {
+                                    //System.out.println(measuringPoint.getCode());
+                                    for (int i = 0; i < measPointNode.getChildNodes().getLength(); i++) {
+                                        if (measPointNode.getChildNodes().item(i).getAttributes().
+                                                getNamedItem("code").getNodeValue().equals(measuringChannel.getCode()))
+                                        {
+                                            //System.out.println(measuringChannel.getCode());
+                                            Element measChannelNode = (Element) measPointNode.getChildNodes().item(i);
+                                            NodeList valuesList = measChannelNode.getElementsByTagName("value");
+                                            for (int j = 0; j < valuesList.getLength(); j++) {
+                                                Element value = (Element)valuesList.item(j);
+                                                value.setAttribute("status", "1");
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
                         labelMeasPointCode.setTextFill(Color.RED);
-                        break;
-                    }
-                    if (countChannels == measuringPoint.getMeasChannelList().size())
-                        labelMeasPointCode.setTextFill(Color.BLACK);
+                    });
+
+                    // добавляем слушателя на событие выбора/снятия галочки
+                    // если галочки сняты со всех каналов, то снимаем галочку с текущ. measuringPoint-а
+                    measuringChannel.setOnAction(event -> {
+                        int countDeselected = 0;
+                        for (MeasuringChannel measChannel: measuringPoint.getMeasChannelList()) {
+                            if (!measChannel.isSelected())
+                                countDeselected++;
+                        }
+                        if (countDeselected == measuringPoint.getMeasChannelList().size())
+                            measuringPoint.setSelected(false);
+                    });
+
+                    if (measuringChannel.isCommercialInfo())
+                        countCommerChannels++; // считаем кол-во каналов с коммер. инф-цией
                 }
-            } else
+                // в конце в завис-ти от того все каналы коммер. или не все
+                // закрашиваем код  measuringPoint-а
+                if (countCommerChannels == measuringPoint.getMeasChannelList().size())
+                    labelMeasPointCode.setTextFill(Color.BLACK);
+                else
+                    labelMeasPointCode.setTextFill(Color.RED);
+            }/* else  // если выбран новый елемент measPointListView-а никогда раньше не выбирался
+                    // тогда это и есть первый элемент measPointListView-а
+                    // этот код выполняется при вызове .........
             {
                 MeasuringPoint measuringPoint = (MeasuringPoint) measPointListView.getItems().get(0);
                 labelMeasPointCode.setText(measuringPoint.getCode());
                 fillMeasChannelListView(measuringPoint);
-            }
-
+            }*/
         });
 
         // устанавливаем вид строк ListView как CheckBoxListCell и
@@ -129,6 +187,7 @@ public class MainWindowController {
     // заполнение списка measuringpoint-ов
     public void fillMeasPointListView(XML80020 xml8020) {
         ObservableList<MeasuringPoint> measPointObList = FXCollections.observableArrayList();
+        // помещаем все measuringPoint-ы из всех area в measPointObList
         for (Area area: xml8020.getAreaList()){
             measPointObList.addAll(area.getMeasPointList());
         }
@@ -139,8 +198,16 @@ public class MainWindowController {
             if (isSelected) {
                 int countMeasPoints = Integer.parseInt(labelSelectedMeasPoints.getText());
                 labelSelectedMeasPoints.setText(Integer.toString(countMeasPoints + 1));
+                for (MeasuringChannel measChannel: measPoint.getMeasChannelList()) {
+                    measChannel.setSelected(true);
+                    measChannel.setDisable(false);
+                }
             } else
             {
+                for (MeasuringChannel measChannel: measPoint.getMeasChannelList()) {
+                    measChannel.setSelected(false);
+                    measChannel.setDisable(true);
+                }
                 int countMeasPoints = Integer.parseInt(labelSelectedMeasPoints.getText());
                 labelSelectedMeasPoints.setText(Integer.toString(countMeasPoints - 1));
             }
@@ -165,6 +232,7 @@ public class MainWindowController {
         ObservableList<MeasuringChannel> measChannelObList = FXCollections.observableArrayList();
         measChannelObList.addAll(measuringPoint.getMeasChannelList());
         measChannelListView.setItems(measChannelObList);
+
         // со всеми  measuringchannel-ами делаем:
         for (MeasuringChannel measuringChannel: measuringPoint.getMeasChannelList()) {
             // каждому measuringchannel-у (а он у нас наследуется от CheckBox)
@@ -209,7 +277,6 @@ public class MainWindowController {
                 }
                 filesListView.setItems(fileNames);
                 labelCountXMLFiles.setText(Integer.toString(fileNames.size()));
-
                 filesListView.getSelectionModel().selectFirst();
             }
         }
@@ -242,23 +309,36 @@ public class MainWindowController {
 
     // создание xml- файла (вызывается при нажатии на кнопку "Создать макет XML")
     public void makeXML(ActionEvent actionEvent) {
-
+        // получение значений элементов окна настроек через переменную settingsWinControl
         String senderName = settingsWinControl.textFieldName.getText();
-        String senderINN =  settingsWinControl.textFieldINN.getText();
+        String senderINN = settingsWinControl.textFieldINN.getText();
         String areaName;
         if (choiceBoxAreaName.getSelectionModel().getSelectedItem() != null)
-            areaName = choiceBoxAreaName.getSelectionModel().getSelectedItem().toString(); else
+            areaName = choiceBoxAreaName.getSelectionModel().getSelectedItem().toString();
+        else
             areaName = "";
         String areaINN = textViewAIIS.getText();
         String messVersion = settingsWinControl.textFieldVersion.getText();
-        String messNumber = settingsWinControl.textFieldNumber.getText();
+
+        int num = Integer.parseInt(settingsWinControl.textFieldNumber.getText());
+        if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
+            num = 0;
+        String messNumber = Integer.toString(num + 1); // увеличиваем на 1 номер message-а
+        settingsWinControl.textFieldNumber.setText(messNumber);
+        settingsWinControl.saveNumber(messNumber); // сразу сохраняем новый номер в файл настроек
+
         String senderAIIS = settingsWinControl.textFieldAIIS.getText();
         String newDLSavingTime;
-        if (settingsWinControl.checkBoxWinter.isSelected())
+        String autoSaveDir;
+        if (settingsWinControl.radioButtonWinter.isSelected())
             newDLSavingTime = "0"; else
             newDLSavingTime = "1";
+        if (settingsWinControl.checkBoxAutoSave.isSelected())
+            autoSaveDir = settingsWinControl.textFieldSavePath.getText(); else
+            autoSaveDir = null; // если автосозранение не стоит, то передаем значение null
+
         xml8020.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber, newDLSavingTime,
-                senderAIIS);
+                senderAIIS, autoSaveDir);
     }
 
     // показ окна с настройками (вызывается при нажатии на пункт меню НАСТРОЙКИ)
@@ -272,6 +352,7 @@ public class MainWindowController {
         // т.к. его нельзя получить из MenuItem в actionEvent
         Stage stage = (Stage) btnMake80020.getScene().getWindow();
         stage.close();
-
     }
+
+
 }

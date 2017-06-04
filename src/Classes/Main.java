@@ -9,23 +9,23 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
-public class Main extends Application {
+import java.io.File;
 
+public class Main extends Application {
+    public static final String slash = File.separator;
     @Override
     public void start(Stage primaryStage) throws Exception {
-        Parent mainWin = FXMLLoader.load(getClass().getResource("../FXML/MainWindow.fxml"));
+        Parent mainWin = FXMLLoader.load(getClass().getResource(".." + slash + "FXML" +
+                slash + "MainWindow.fxml"));
         primaryStage.setTitle("АСКУЭ 1.0");
         Scene mainScene = new Scene(mainWin);
         primaryStage.setScene(mainScene);
         primaryStage.show();
         // при срабатывании закрытия окна для того, чтобы в опер. памяти не
         // осталось нитей приложения выполняется такой код
-        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
-            @Override
-            public void handle(WindowEvent t) {
-                Platform.exit();
-                System.exit(0);
-            }
+        primaryStage.setOnCloseRequest(event -> {
+            Platform.exit();
+            System.exit(0);
         });
     }
 

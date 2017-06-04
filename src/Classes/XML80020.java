@@ -15,8 +15,11 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+
+import static Classes.Main.slash;
 
 /**
  * Created by Сергей on 12.05.2017.
@@ -204,9 +207,22 @@ public class XML80020 extends XmlClass {
     public void loadDataFromXML() {
         // получаем xml-документ в случае успешного разбора xml-файла
         // заполнение полей класса данными из xml-документа
-        Document xmlDoc = this.getXmlDoc();
+        Document xmlDoc;
+        try {
+            xmlDoc = XmlUtil.getXmlDoc(getFile());
+        }
+        catch (FileNotFoundException e1) {
+            messageWindow.showModalWindow("Ошибка", "Не найден файл " + getFile().getAbsoluteFile(),
+                    Alert.AlertType.ERROR);
+            return;
+        }
+        catch (Exception e2) {
+            messageWindow.showModalWindow("Ошибка", e2.getMessage(), Alert.AlertType.ERROR);
+            return;
+        }
         // удаляем все пустые текстовые узлы дерева
         XmlUtil.removeWhitespaceNodes(xmlDoc.getDocumentElement());
+        // заполняем поля данными
         setMessage(xmlDoc);
         setDateTime(xmlDoc);
         setSender(xmlDoc);
@@ -215,8 +231,10 @@ public class XML80020 extends XmlClass {
 
     // сохраняем данные с новыми параметрами
     public void saveDataToXML(String senderName, String senderINN, String areaName, String areaINN,
-                              String messVersion, String messNumber, String newDLSavingTime, String senderAIIS) {
-        File template = new File(System.getProperty("user.dir")+"/src/Templates/80020(40)_XML.xml");
+                              String messVersion, String messNumber, String newDLSavingTime,
+                              String senderAIIS, String autoSaveDir) {
+        File template = new File(System.getProperty("user.dir")+ slash + "src" +
+                slash + "Templates" + slash + "80020(40)_XML.xml");
         Document xmlNewDoc;
         // получаем xmlNewDoc из файла шаблона
         try {
@@ -224,20 +242,12 @@ public class XML80020 extends XmlClass {
         }
         // если не удалось получить xmlNewDoc, то выходим из метода
         catch (FileNotFoundException e1) {
-            XmlClass.alertWindow.setAlertType(Alert.AlertType.ERROR);
-            XmlClass.alertWindow.setTitle("Ошибка");
-            XmlClass.alertWindow.setHeaderText(null);
-            XmlClass.alertWindow.setContentText("Данные не сохранены! Отсутствует файл шаблона: " +
-                    template.getAbsolutePath());
-            XmlClass.alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", "Данные не сохранены! Отсутствует файл шаблона: " +
+                    template.getAbsolutePath(), Alert.AlertType.ERROR);
             return;
         }
         catch (Exception e2) {
-            XmlClass.alertWindow.setAlertType(Alert.AlertType.ERROR);
-            XmlClass.alertWindow.setTitle("Ошибка");
-            XmlClass.alertWindow.setHeaderText(null);
-            XmlClass.alertWindow.setContentText(e2.getLocalizedMessage());
-            XmlClass.alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", e2.getMessage(), Alert.AlertType.ERROR);
             return;
         }
         // удаляем все пустые текстовые узлы дерева
@@ -299,27 +309,32 @@ public class XML80020 extends XmlClass {
             }
         }
         // под этим именем сохраняем файл
-        String outFileName = this.getMessage().getMessageClass() + "_" +
+        String fileName = this.getMessage().getMessageClass() + "_" +
                 senderINN +"_" +
                 this.getDateTime().getDay() + "_" +
                 messNumber + "_" +
                 senderAIIS + ".xml";
+        String outFileName;
+        String outDirName;
+        if (autoSaveDir != null) { // если передали null-е значение, то сохраняем в ту же папку
+            outDirName = autoSaveDir; // в подпапку с именем класса макета (80020 или 80040)
+            outFileName = outDirName + slash + fileName;
+        }
+        else {
+            outDirName = this.getFile().getParent() + slash + this.getMessage().getMessageClass();
+            outFileName = outDirName + slash + fileName;
+        }
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
+            messageWindow.showModalWindow("Выполнено", "Данные сохранены в папке " + outDirName,
+                    Alert.AlertType.INFORMATION);
             XmlUtil.saveXMLDoc(xmlNewDoc, outFileName, "windows-1251", true);
-            alertWindow.setAlertType(Alert.AlertType.INFORMATION);
-            alertWindow.setTitle("Выполнено");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText("Данные сохранены в папке " + System.getProperty("user.dir") + "!");
-            alertWindow.showAndWait();
         }
         catch (TransformerException e) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText("Трансформация в файл " + outFileName +" завершена неудачно!");
-            alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
+                    " завершена неудачно!", Alert.AlertType.ERROR);
         }
+
     }
 
 }

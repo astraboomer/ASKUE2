@@ -4,9 +4,13 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.paint.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontPosture;
 import org.w3c.dom.NodeList;
 
 import java.awt.*;
@@ -21,6 +25,12 @@ public class MeasuringChannel extends CheckBox {
     private BooleanProperty selected = new SimpleBooleanProperty(true);
     private ReadOnlyStringWrapper desc = new ReadOnlyStringWrapper();
     private String aliasName;
+    private ContextMenu contextMenu = new ContextMenu();
+    private MenuItem unCommMenuItem = new MenuItem("Пометить как некоммер.");
+
+    public MenuItem getUnCommMenuItem() {
+        return unCommMenuItem;
+    }
 
     public String getAliasName() {
         return aliasName;
@@ -32,6 +42,9 @@ public class MeasuringChannel extends CheckBox {
 
     public MeasuringChannel () {
         this.setSelected(true);
+        // каждому measuringChannel-у добавляем контекстное меню
+        contextMenu.getItems().addAll(unCommMenuItem);
+        this.setOnContextMenuRequested(event -> contextMenu.show(this, event.getScreenX(), event.getScreenY()));
     }
     public boolean isCommercialInfo() {
         return isCommercialInfo;

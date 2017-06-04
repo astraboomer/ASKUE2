@@ -15,7 +15,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -28,7 +27,7 @@ public abstract class XmlClass {
     private Message message;
     private DateTime dateTime;
     private Sender sender;
-    public static Alert alertWindow = new Alert(null);
+    public static MessageWindow messageWindow = new MessageWindow(Alert.AlertType.INFORMATION);
     public static Alert errorFilesWindow = new Alert(Alert.AlertType.ERROR);
 
     public File getFile() {
@@ -112,7 +111,7 @@ public abstract class XmlClass {
         }
         String text="";
         for (Map.Entry<String, String> pair: failedFileList.entrySet()) {
-            text += pair.getKey() + ": "+ pair.getValue() + System.lineSeparator();
+            text += pair.getKey() + ": "+ pair.getValue() + "." + System.lineSeparator();
         }
 
         if (failedFileList.size() > 0) {
@@ -136,34 +135,6 @@ public abstract class XmlClass {
             errorFilesWindow.showAndWait();
         }
         return validFileList;
-    }
-
-    // метод получает и возвращает DOM xml-документ из объекта
-    protected Document getXmlDoc() {
-        DocumentBuilderFactory dbf;
-        DocumentBuilder db;
-        Document xmlDoc = null;
-        try {
-            dbf = DocumentBuilderFactory.newInstance();
-            db  = dbf.newDocumentBuilder();
-            xmlDoc = db.parse(this.file);
-            xmlDoc.getDocumentElement().normalize();
-        }
-        catch (FileNotFoundException e1) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText("Не найден файл " + file.getAbsoluteFile());
-            alertWindow.showAndWait();
-        }
-        catch (Exception e2) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText(e2.getMessage());
-            alertWindow.showAndWait();
-        }
-        return xmlDoc;
     }
 
     // метод возвращает строку текущего времени в формате yyyyMMddHHmmss

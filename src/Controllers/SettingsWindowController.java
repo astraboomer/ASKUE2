@@ -1,6 +1,5 @@
 package Controllers;
 
-import Classes.XML80020;
 import Classes.XmlUtil;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -15,8 +14,8 @@ import javax.xml.transform.TransformerException;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-import static Classes.XmlClass.alertWindow;
-
+import static Classes.Main.slash;
+import static Classes.XmlClass.messageWindow;
 
 /**
  * Created by Сергей on 29.05.2017.
@@ -31,11 +30,14 @@ public class SettingsWindowController {
     public TextField textFieldSavePath;
     public TextField textFieldNumber;
     public TextField textFieldName;
-    public RadioButton checkBoxWinter;
-    public RadioButton checkBoxSummer;
+    public RadioButton radioButtonWinter;
+    public RadioButton radioButtonSummer;
     public CheckBox checkBoxAutoSave;
 
     private Document xmlNewDoc;
+
+    private final String fileName = System.getProperty("user.dir")+ slash +
+            "src" + slash + "Templates" + slash + "settings.xml";
 
     public String getName() {
         return textFieldName.getText();
@@ -44,7 +46,12 @@ public class SettingsWindowController {
     @FXML
     // заполнение окна настроек данными из файла настроек
     public void initialize() {
-        File settings = new File(System.getProperty("user.dir")+"/src/Templates/settings.xml");
+        // помещаем радио кнопки в одну группу выбора
+        ToggleGroup toggleGroup = new ToggleGroup();
+        radioButtonWinter.setToggleGroup(toggleGroup);
+        radioButtonSummer.setToggleGroup(toggleGroup);
+
+        File settings = new File(fileName);
         try {
             xmlNewDoc = XmlUtil.getXmlDoc(settings);
 
@@ -71,38 +78,29 @@ public class SettingsWindowController {
             if (autoSave.equals("1"))
                 checkBoxAutoSave.setSelected(true);
             if (dayLightSavingTime.equals("0")) {
-                checkBoxWinter.setSelected(true);
+                radioButtonWinter.setSelected(true);
             } else {
-                checkBoxSummer.setSelected(true);
+                radioButtonSummer.setSelected(true);
             }
             // на поле с номером вешаем слушателя для ввода только цифр в него
             textFieldNumber.textProperty().addListener((observable, oldValue, newValue) -> {
                 if (!newValue.matches("\\d*")) {
                     String val = newValue.replaceAll("\\D+", "");
-
                     if (!val.equals("")) textFieldNumber.setText(val); else
                         textFieldNumber.setText(oldValue);
                 }
             });
         }
         catch (FileNotFoundException e1) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText("Невозможно загрузить настройки. Программа будет закрыта "+
-                    "Проверьте наличие файла " + settings.getAbsolutePath());
-            alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", "Невозможно загрузить настройки. Программа будет закрыта. "+
+                    "Проверьте наличие файла " + settings.getAbsolutePath(), Alert.AlertType.ERROR);
             //завершаем работу программы
             Platform.exit();
             System.exit(0);
 
         }
         catch (Exception e2) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText(e2.getLocalizedMessage());
-            alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", e2.getMessage(), Alert.AlertType.ERROR);
             Platform.exit();
             System.exit(0);
         }
@@ -115,14 +113,6 @@ public class SettingsWindowController {
         stage.close();
     }
 
-    // обрабатываем переключения radioButton-ов
-    public void selectSeasonTime(ActionEvent actionEvent) {
-        RadioButton radioButton = (RadioButton) actionEvent.getSource();
-        radioButton.setSelected(true);
-        if (radioButton.getText().equals("Зимнее время"))
-            checkBoxSummer.setSelected(false); else
-                checkBoxWinter.setSelected(false);
-    }
     // выбор папки для автосохранения макетов
     public void selectSaveDir(ActionEvent actionEvent) {
         DirectoryChooser dirChooser = new DirectoryChooser();
@@ -130,9 +120,22 @@ public class SettingsWindowController {
         File path = dirChooser.showDialog(new Stage());
         if (path != null)
             textFieldSavePath.setText(path.getAbsolutePath());
-
     }
 
+    public void saveNumber(String newNumber) {
+        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
+                setNodeValue(newNumber);
+        try {
+            // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
+            XmlUtil.saveXMLDoc(xmlNewDoc, fileName,"windows-1251", true);
+        }
+        catch (TransformerException e) {
+            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + fileName +
+                    " завершена неудачно!", Alert.AlertType.ERROR);
+        }
+    }
+
+    // сохранение настроек в файл /Templates/settings.xml
     public void saveSettings(ActionEvent actionEvent) {
         xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("name").
                 setNodeValue(textFieldName.getText());
@@ -151,7 +154,7 @@ public class SettingsWindowController {
         xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("savepath").
                 setNodeValue(textFieldSavePath.getText());
 
-        if (checkBoxWinter.isSelected())
+        if (radioButtonWinter.isSelected())
             xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("DayLightSavingTime").
                 setNodeValue("0"); else
                     xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("DayLightSavingTime").
@@ -164,17 +167,12 @@ public class SettingsWindowController {
 
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
-            XmlUtil.saveXMLDoc(xmlNewDoc, System.getProperty("user.dir")+"/src/Templates/settings.xml",
-                    "windows-1251", true);
+            XmlUtil.saveXMLDoc(xmlNewDoc, fileName,"windows-1251", true);
             closeWindow(actionEvent);
         }
         catch (TransformerException e) {
-            alertWindow.setAlertType(Alert.AlertType.ERROR);
-            alertWindow.setTitle("Ошибка");
-            alertWindow.setHeaderText(null);
-            alertWindow.setContentText("Трансформация в файл " + System.getProperty("user.dir")+
-                    "/src/Templates/settings.xml" +" завершена неудачно!");
-            alertWindow.showAndWait();
+            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + fileName +
+                    " завершена неудачно!", Alert.AlertType.ERROR);
         }
     }
 }

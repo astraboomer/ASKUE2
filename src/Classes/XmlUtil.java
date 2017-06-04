@@ -18,7 +18,7 @@ import java.io.FileNotFoundException;
 public class XmlUtil {
 
     // возвращает DOM xml-документ с которым будет вестись вся дальнейшая работа
-    public static Document getXmlDoc (File xmlFile) throws FileNotFoundException, Exception {
+    public static Document getXmlDoc (File xmlFile) throws  Exception {
         DocumentBuilderFactory dbf;
         DocumentBuilder db;
         dbf = DocumentBuilderFactory.newInstance();

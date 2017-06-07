@@ -2,7 +2,7 @@
 
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.CheckBox?>
-<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.Menu?>
@@ -15,6 +15,7 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.text.Font?>
 
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="620.0" minWidth="840.0" prefHeight="640.0" prefWidth="840.0" xmlns="http://javafx.com/javafx/8.0.131" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controllers.MainWindowController">
    <children>
@@ -25,7 +26,7 @@
                 <Menu mnemonicParsing="false" text="Меню">
                   <items>
                     <MenuItem mnemonicParsing="false" onAction="#showSettingWindow" text="Настройки" />
-                        <MenuItem mnemonicParsing="false" text="О программе" />
+                        <MenuItem mnemonicParsing="false" onAction="#showAboutWindow" text="О программе" />
                         <MenuItem mnemonicParsing="false" onAction="#closeApplication" text="Выход" />
                   </items>
                 </Menu>
@@ -37,11 +38,11 @@
               <tabs>
                 <Tab text="80020/80040/80025">
                      <content>
-                        <AnchorPane prefHeight="447.0" prefWidth="720.0">
+                        <AnchorPane prefHeight="616.0" prefWidth="840.0">
                            <children>
-                              <AnchorPane layoutX="15.0" layoutY="48.0" prefHeight="95.0" prefWidth="771.0" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="14.0">
+                              <AnchorPane layoutX="15.0" layoutY="48.0" prefHeight="92.0" prefWidth="811.0" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="48.0">
                                  <children>
-                                    <ListView fx:id="filesListView" layoutX="-1.0" layoutY="-7.0" maxHeight="150.0" maxWidth="867.0" prefHeight="95.0" prefWidth="771.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                                    <ListView fx:id="filesListView" maxWidth="867.0" prefHeight="92.0" prefWidth="811.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" />
                                  </children>
                               </AnchorPane>
                               <Label layoutX="205.0" layoutY="12.0" text="Выбранные файлы:" />
@@ -49,41 +50,50 @@
                               <Button layoutX="205.0" layoutY="12.0" mnemonicParsing="false" onAction="#selectXMLFiles" text="Выбрать файлы XML" />
                               <Label layoutX="14.0" layoutY="23.0" text="Выбранные файлы:" />
                               <Label fx:id="labelCountXMLFiles" layoutX="158.0" layoutY="23.0" prefHeight="21.0" prefWidth="34.0" text="0" />
-                              <AnchorPane layoutX="15.0" layoutY="150.0" prefHeight="179.0" prefWidth="819.0" AnchorPane.bottomAnchor="216.0" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="6.0" AnchorPane.topAnchor="150.0">
+                              <AnchorPane layoutX="15.0" layoutY="153.0" minHeight="-Infinity" minWidth="-Infinity" prefHeight="218.0" prefWidth="811.0" AnchorPane.leftAnchor="15.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="153.0">
                                  <children>
-                                    <ListView fx:id="measPointListView" layoutY="27.0" prefHeight="126.0" prefWidth="496.0" AnchorPane.bottomAnchor="1.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="275.0" AnchorPane.topAnchor="27.0" />
+                                    <ListView fx:id="measPointListView" layoutY="27.0" prefHeight="150.0" prefWidth="544.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="267.0" AnchorPane.topAnchor="27.0" />
                                     <Label text="Точки измерения (ТИ)" />
-                                    <Label layoutX="504.0" text="Измерительные каналы" AnchorPane.rightAnchor="102.0" />
-                                    <ListView fx:id="measChannelListView" layoutX="545.0" layoutY="27.0" prefHeight="149.0" prefWidth="259.0" AnchorPane.rightAnchor="8.0" AnchorPane.topAnchor="27.0" />
+                                    <Label layoutX="560.0" text="Измерительные каналы" AnchorPane.rightAnchor="86.0" />
+                                    <ListView fx:id="measChannelListView" layoutX="560.0" layoutY="27.0" prefHeight="150.0" prefWidth="250.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="27.0" />
+                                    <Button fx:id="btnSelectAll" disable="true" layoutY="181.0" mnemonicParsing="false" onAction="#selectAllMeasPoints" prefHeight="22.0" prefWidth="36.0" text="[ v ]">
+                                       <font>
+                                          <Font size="12.0" />
+                                       </font></Button>
+                                    <Button fx:id="btnUnSelectAll" disable="true" layoutX="41.0" layoutY="181.0" mnemonicParsing="false" onAction="#unSelectAllMeasPoints" prefHeight="22.0" prefWidth="36.0" text="[   ]">
+                                       <font>
+                                          <Font size="12.0" />
+                                       </font></Button>
+                                    <Label fx:id="labelSelectedMeasPoints" layoutX="381.0" layoutY="185.0" prefHeight="21.0" prefWidth="35.0" text="0" />
+                                    <Label layoutX="305.0" layoutY="185.0" text="Выбрано:" />
+                                    <Label fx:id="labelCountMeasPoints" layoutX="263.0" layoutY="185.0" prefHeight="21.0" prefWidth="35.0" text="0" />
+                                    <Label layoutX="357.0" prefHeight="21.0" prefWidth="53.0" text="Код ТИ:" AnchorPane.rightAnchor="405.0" />
+                                    <Label fx:id="labelMeasPointCode" layoutX="416.0" prefHeight="21.0" prefWidth="124.0" text="      " AnchorPane.bottomAnchor="197.0" AnchorPane.rightAnchor="271.0" AnchorPane.topAnchor="0.0" />
+                                    <Label layoutX="91.0" layoutY="185.0" text="Всего точек измерения:" />
                                  </children>
                               </AnchorPane>
-                              <AnchorPane layoutX="14.0" layoutY="335.0" prefHeight="229.0" prefWidth="812.0" AnchorPane.bottomAnchor="-21.0">
+                              <AnchorPane layoutX="15.0" layoutY="371.0" minHeight="-Infinity" minWidth="-Infinity" prefHeight="185.0" prefWidth="812.0">
                                  <children>
-                                    <Label layoutX="198.0" layoutY="45.0" text="Субъект:" />
-                                    <ChoiceBox fx:id="choiceBoxAreaName" layoutX="284.0" layoutY="35.0" prefHeight="31.0" prefWidth="487.0" />
-                                    <Label layoutX="198.0" layoutY="83.0" text="Код АИИС:" />
-                                    <TextField fx:id="textViewAIIS" layoutX="283.0" layoutY="73.0" prefHeight="31.0" prefWidth="101.0" />
-                                    <Button layoutX="399.0" layoutY="73.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="98.0" text="Сохранить" />
-                                    <Button layoutX="519.0" layoutY="73.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="98.0" text="Удалить" />
-                                    <Button fx:id="btnMake80020" disable="true" layoutX="19.0" layoutY="102.0" mnemonicParsing="false" onAction="#makeXML" text="Создать макет XML" />
-                                    <Button fx:id="btnSelectAll" disable="true" layoutX="19.0" layoutY="52.0" mnemonicParsing="false" onAction="#selectAllMeasPoints" prefHeight="31.0" prefWidth="45.0" text="[ v ]" />
-                                    <Button fx:id="btnUnSelectAll" disable="true" layoutX="75.0" layoutY="52.0" mnemonicParsing="false" onAction="#unSelectAllMeasPoints" prefHeight="31.0" prefWidth="45.0" text="[   ]" />
-                                    <Button fx:id="btnMakeXLS" disable="true" layoutX="19.0" layoutY="151.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="152.0" text="Выгрузить в Excel" />
-                                    <RadioButton fx:id="radioButton30Min" layoutX="198.0" layoutY="149.0" mnemonicParsing="false" selected="true" text="30 минут" />
-                                    <RadioButton fx:id="radioButton60Min" layoutX="198.0" layoutY="173.0" mnemonicParsing="false" text="60 минут" />
-                                    <CheckBox layoutX="410.0" layoutY="128.0" mnemonicParsing="false" selected="true" text="Удалить пустые столбцы в Excel" />
-                                    <CheckBox layoutX="410.0" layoutY="167.0" mnemonicParsing="false" text="Указывать временные интервалы" />
-                                    <Label layoutY="-14.0" text="Код ТИ:" AnchorPane.bottomAnchor="202.0" AnchorPane.topAnchor="-14.0" />
-                                    <Label fx:id="labelMeasPointCode" layoutX="61.0" layoutY="-14.0" AnchorPane.bottomAnchor="202.0" AnchorPane.topAnchor="-14.0" />
-                                    <Separator layoutY="26.0" prefHeight="4.0" prefWidth="811.0" />
-                                    <Separator layoutX="185.0" layoutY="115.0" prefHeight="3.0" prefWidth="625.0" />
-                                    <Separator layoutX="184.0" layoutY="28.0" orientation="VERTICAL" prefHeight="171.0" prefWidth="7.0" />
-                                    <Label layoutX="198.0" layoutY="124.0" text="Интервал времени:" />
-                                    <Separator layoutX="809.0" layoutY="28.0" orientation="VERTICAL" prefHeight="173.0" prefWidth="6.0" />
-                                    <Separator layoutX="-2.0" layoutY="27.0" orientation="VERTICAL" prefHeight="173.0" prefWidth="10.0" AnchorPane.bottomAnchor="29.0" AnchorPane.leftAnchor="-2.0" AnchorPane.topAnchor="27.0" />
-                                    <Separator layoutX="1.0" layoutY="199.0" prefHeight="4.0" prefWidth="810.0" />
+                                    <Label layoutX="15.0" layoutY="18.0" text="Субъект:" />
+                                    <Label layoutX="15.0" layoutY="58.0" text="Код АИИС:" />
+                                    <TextField fx:id="textViewAIIS" disable="true" layoutX="107.0" layoutY="50.0" prefHeight="31.0" prefWidth="101.0" />
+                                    <Button fx:id="btnSaveAIIS" disable="true" layoutX="223.0" layoutY="50.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="98.0" text="Сохранить" />
+                                    <Button fx:id="btnDelAIIS" disable="true" layoutX="343.0" layoutY="50.0" mnemonicParsing="false" prefHeight="31.0" prefWidth="98.0" text="Удалить" />
+                                    <Button fx:id="btnMake80020" disable="true" layoutX="692.0" layoutY="15.0" mnemonicParsing="false" onAction="#makeXML" prefHeight="75.0" prefWidth="75.0" AnchorPane.topAnchor="9.0" />
+                                    <Button fx:id="btnMakeXLS" disable="true" layoutX="692.0" layoutY="103.0" mnemonicParsing="false" prefHeight="75.0" prefWidth="75.0" AnchorPane.topAnchor="100.0" />
+                                    <RadioButton fx:id="radioButton30Min" disable="true" layoutX="15.0" layoutY="125.0" mnemonicParsing="false" selected="true" text="30 минут" />
+                                    <RadioButton fx:id="radioButton60Min" disable="true" layoutX="15.0" layoutY="152.0" mnemonicParsing="false" text="60 минут" />
+                                    <CheckBox fx:id="checkBoxDelColumns" disable="true" layoutX="235.0" layoutY="115.0" mnemonicParsing="false" selected="true" text="Удалить пустые столбцы в Excel" />
+                                    <CheckBox fx:id="checkBoxShowIntervals" disable="true" layoutX="235.0" layoutY="150.0" mnemonicParsing="false" text="Указывать временные интервалы" />
+                                    <Separator prefHeight="4.0" prefWidth="810.0" />
+                                    <Separator layoutY="90.0" prefHeight="4.0" prefWidth="811.0" />
+                                    <Label layoutX="15.0" layoutY="100.0" text="Интервал времени:" />
+                                    <Separator layoutX="809.0" orientation="VERTICAL" prefHeight="184.0" prefWidth="1.0" />
+                                    <Separator orientation="VERTICAL" prefHeight="184.0" prefWidth="1.0" />
+                                    <ComboBox fx:id="comboBoxAreaName" disable="true" editable="true" layoutX="107.0" layoutY="10.0" prefHeight="31.0" prefWidth="436.0" />
                                  </children>
                               </AnchorPane>
+                              <Separator layoutX="17.0" layoutY="554.0" prefHeight="1.0" prefWidth="809.0" />
                            </children>
                         </AnchorPane>
                      </content>
@@ -92,17 +102,6 @@
               </tabs>
             </TabPane>
          </center>
-         <bottom>
-            <AnchorPane prefHeight="26.0" prefWidth="600.0" BorderPane.alignment="CENTER">
-               <children>
-                  <Separator layoutY="-1.0" prefHeight="0.0" prefWidth="600.0" valignment="TOP" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="-1.0" />
-                  <Label layoutX="14.0" layoutY="2.0" text="Всего точек измерения:" />
-                  <Label fx:id="labelCountMeasPoints" layoutX="186.0" layoutY="2.0" prefHeight="21.0" prefWidth="35.0" text="0" />
-                  <Label layoutX="221.0" layoutY="2.0" text="Выбрано:" />
-                  <Label fx:id="labelSelectedMeasPoints" layoutX="295.0" layoutY="2.0" prefHeight="21.0" prefWidth="35.0" text="0" />
-               </children>
-            </AnchorPane>
-         </bottom>
       </BorderPane>
    </children>
 </AnchorPane>

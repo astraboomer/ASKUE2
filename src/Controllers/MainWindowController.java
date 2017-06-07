@@ -1,11 +1,12 @@
 package Controllers;
 
+import Classes.MeasuringData;
 import Classes.XML80020;
 import Classes.XmlClass;
 import Classes.XmlTag.Area;
 import Classes.XmlTag.MeasuringChannel;
 import Classes.XmlTag.MeasuringPoint;
-import javafx.beans.value.ChangeListener;
+import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -16,6 +17,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
@@ -26,6 +29,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -48,25 +52,41 @@ public class MainWindowController {
     public Button btnMake80020;
     public Button btnMakeXLS;
     public TextField textViewAIIS;
-    public ChoiceBox choiceBoxAreaName;
+    public ComboBox<String> comboBoxAreaName;
     public RadioButton radioButton30Min;
     public RadioButton radioButton60Min;
+    public Button btnSaveAIIS;
+    public Button btnDelAIIS;
+    public CheckBox checkBoxDelColumns;
+    public CheckBox checkBoxShowIntervals;
     private List<File> fileList = new ArrayList<>();
     private XML80020 xml8020;
-    private Stage settingsStage = new Stage();
-    // через эту переменную контроллера окна настроек будем получать
+    private Stage settingsStage;
+    private Stage dataStage;
+    // через эти переменные-контроллеры окон настроек и данных будем получать
     // доступ к элементам формы и методам класса
     private SettingsWindowController settingsWinControl;
-    //private ObservableList<MeasuringChannel> measChannelObList = FXCollections.observableArrayList();
+    private DataWindowController dataWinControl;
+    private Alert aboutWindow = new Alert(Alert.AlertType.INFORMATION);
 
     @FXML
     public void initialize() {
         try {
+            FileInputStream imageStream = new FileInputStream(System.getProperty("user.dir")+ slash +
+                    "src" + slash + "Resources" + slash + "xls.png");
+            Image imageXml = new Image(imageStream);
+            btnMakeXLS.graphicProperty().setValue(new ImageView(imageXml));
+
+            imageStream = new FileInputStream( System.getProperty("user.dir")+ slash +
+                    "src" + slash +"Resources" + slash + "xml.png");
+            Image imageXls = new Image(imageStream);
+            btnMake80020.graphicProperty().setValue(new ImageView(imageXls));
+
             // при инициализации гл. окна программы создаем окно с настройками
             FXMLLoader fxmlLoader = new FXMLLoader();
             Parent settingsWin = fxmlLoader.load(getClass().getResource(".." + slash + "FXML" +
                             slash + "SettingsWindow.fxml").openStream());
-            // инициализируем переменную контроллер, через нее будем получать доступ к элементам окна настроек
+            // инициализируем переменную-контроллер, через нее будем получать доступ к элементам окна настроек
             settingsWinControl = fxmlLoader.getController();
 
             Scene settingsScene = new Scene(settingsWin);
@@ -75,10 +95,33 @@ public class MainWindowController {
             settingsStage.setScene(settingsScene);
             settingsStage.setResizable(false);
             settingsStage.initModality(Modality.APPLICATION_MODAL);
+
+            fxmlLoader = new FXMLLoader();
+            Parent dataWin = fxmlLoader.load(getClass().getResource(".." + slash + "FXML" +
+                    slash + "DataWindow.fxml").openStream());
+            // инициализируем переменную-контроллер, через нее будем получать доступ к элементам окна настроек
+            dataWinControl = fxmlLoader.getController();
+
+            Scene dataScene = new Scene(dataWin);
+            dataStage = new Stage();
+            dataStage.setTitle("Данные");
+            dataStage.setScene(dataScene);
+            dataStage.setResizable(false);
+            dataStage.initModality(Modality.APPLICATION_MODAL);
+            dataStage.initStyle(StageStyle.UTILITY);
+
+            // при инициализации гл. окна программы создаем окно "О программе"
+            aboutWindow.setTitle("О программе");
+            aboutWindow.setHeaderText("АСКУЭ 1.0");
+            aboutWindow.setContentText("Для использования только в ПАО \"АЭСК\"" + System.lineSeparator() +
+                    "Разработчик Ищенко С.А. " + System.lineSeparator() + "e-mail: astraboomer@hotmail.com");
         }
         catch (IOException e) {
             // выводим сообщение об шибке в случае неудачи
-            messageWindow.showModalWindow("Ошибка", e.getMessage(), Alert.AlertType.ERROR);
+            messageWindow.showModalWindow("Ошибка", e.getMessage() + ". Программа будет закрыта.",
+                    Alert.AlertType.ERROR);
+            Platform.exit();
+            System.exit(0);
         }
 
         // помещаем радио кнопки в одну группу выбора
@@ -95,45 +138,62 @@ public class MainWindowController {
                 displayAllXMLData(fileList.get(0));
         });
 
+
         // при нажатии на строку с measuringpoint-ом получаем его код и если
         // имеется некоммерч. информация красим красным label с кодом
-        measPointListView.getSelectionModel().selectedItemProperty().addListener((ObservableValue observable, Object old_value, Object new_value) -> {
+        measPointListView.getSelectionModel().selectedItemProperty().addListener((ObservableValue observable,
+                                                                                  Object old_value, Object new_value) -> {
             if (new_value != null) { //если выбран новый елемент measPointListView-а
                 MeasuringPoint measuringPoint = (MeasuringPoint) measPointListView.getSelectionModel().getSelectedItem();
                 labelMeasPointCode.setText(measuringPoint.getCode());
                 fillMeasChannelListView(measuringPoint);
                 int countCommerChannels = 0; // счетчик кол-ва каналов с коммер. инф-цией
+
                 // проверяем все measuringChannel-ы выбранного measuringPoint-а
                 for (MeasuringChannel measuringChannel: measuringPoint.getMeasChannelList()) {
-                    // в пункт контекс. меню каждого measuringChannel-а добавляем слушателя выбора,
-                    // в котором меняется тип информации и цвет кода текущ. measuringPoint-а
+
+                    // в пункт контекс. меню каждого measuringChannel-а добавляем слушателя установки некомм. инф.,
+                    // в котором меняется тип информации на некомм. и цвет кода текущ. measuringPoint-а
                     measuringChannel.getUnCommMenuItem().setOnAction(event -> {
+                        NodeList valuesList = getValuesOfChannelNode(measuringPoint, measuringChannel);
                         measuringChannel.setCommercialInfo(false);
                         measuringChannel.setFont(Font.font("System", FontPosture.ITALIC, -1));
-                        for (Area area: xml8020.getAreaList()) {
-                            for (Node measPointNode: area.getMeasPointNodeList()) {
-
-                                if (measPointNode.getAttributes().getNamedItem("code").getNodeValue().
-                                        equals(measuringPoint.getCode())) {
-                                    //System.out.println(measuringPoint.getCode());
-                                    for (int i = 0; i < measPointNode.getChildNodes().getLength(); i++) {
-                                        if (measPointNode.getChildNodes().item(i).getAttributes().
-                                                getNamedItem("code").getNodeValue().equals(measuringChannel.getCode()))
-                                        {
-                                            //System.out.println(measuringChannel.getCode());
-                                            Element measChannelNode = (Element) measPointNode.getChildNodes().item(i);
-                                            NodeList valuesList = measChannelNode.getElementsByTagName("value");
-                                            for (int j = 0; j < valuesList.getLength(); j++) {
-                                                Element value = (Element)valuesList.item(j);
-                                                value.setAttribute("status", "1");
-                                            }
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                        }
                         labelMeasPointCode.setTextFill(Color.RED);
+                        if (valuesList != null)
+                        for (int j = 0; j < valuesList.getLength(); j++) {
+                            Element value = (Element) valuesList.item(j);
+                            value.setAttribute("status", "1");
+                        }
+                    });
+                    // в пункт контекс. меню каждого measuringChannel-а добавляем показа данных,
+                    measuringChannel.getShowDataItem().setOnAction(event -> {
+                        dataWinControl.labelMeasPoint.setText(measuringPoint.getName());
+                        dataWinControl.labelMeasChannel.setText(measuringChannel.getAliasName());
+                        // получаем список узлов value
+                        NodeList valuesList = getValuesOfChannelNode(measuringPoint, measuringChannel);
+                        ObservableList<MeasuringData> measDataList = FXCollections.observableArrayList();
+                        for (int i = 0; i < valuesList.getLength(); i++) {
+                            String start = valuesList.item(i).getParentNode().getAttributes().getNamedItem("start").
+                                    getNodeValue();
+                            String end = valuesList.item(i).getParentNode().getAttributes().getNamedItem("end").
+                                    getNodeValue();
+                            String value = valuesList.item(i).getTextContent();
+                            Node statusNode = valuesList.item(i).getAttributes().getNamedItem("status");
+                            String typeInfo;
+                            if (statusNode != null) {
+                                typeInfo = valuesList.item(i).getAttributes().getNamedItem("status").getNodeValue();
+                            } else
+                            {
+                                typeInfo = "0";
+                            }
+                            String timeInterval = start.substring(0,2) + ":" + start.substring(2,4) +
+                                    " - " + end.substring(0,2) + ":" + end.substring(2,4);
+                            MeasuringData measuringData = new MeasuringData(timeInterval, value, typeInfo);
+                            measDataList.add(measuringData);
+                        }
+                        dataWinControl.dataTableView.setItems(measDataList);
+                        dataWinControl.dataTableView.scrollTo(0);
+                        dataStage.show();
                     });
 
                     // добавляем слушателя на событие выбора/снятия галочки
@@ -157,14 +217,7 @@ public class MainWindowController {
                     labelMeasPointCode.setTextFill(Color.BLACK);
                 else
                     labelMeasPointCode.setTextFill(Color.RED);
-            }/* else  // если выбран новый елемент measPointListView-а никогда раньше не выбирался
-                    // тогда это и есть первый элемент measPointListView-а
-                    // этот код выполняется при вызове .........
-            {
-                MeasuringPoint measuringPoint = (MeasuringPoint) measPointListView.getItems().get(0);
-                labelMeasPointCode.setText(measuringPoint.getCode());
-                fillMeasChannelListView(measuringPoint);
-            }*/
+            }
         });
 
         // устанавливаем вид строк ListView как CheckBoxListCell и
@@ -184,6 +237,29 @@ public class MainWindowController {
                 }));
     }
 
+    // метод возвращает список узлов value переданного measuringPoint-а и узла measuringChannel в нем
+    private NodeList getValuesOfChannelNode (MeasuringPoint measuringPoint, MeasuringChannel measuringChannel) {
+        NodeList valuesList = null;
+        label:
+        for (Area area: xml8020.getAreaList()) {
+            for (Node measPointNode: area.getMeasPointNodeList()) {
+                if (measPointNode.getAttributes().getNamedItem("code").getNodeValue().
+                        equals(measuringPoint.getCode())) {
+                    for (int i = 0; i < measPointNode.getChildNodes().getLength(); i++) {
+                        if (measPointNode.getChildNodes().item(i).getAttributes().
+                                getNamedItem("code").getNodeValue().equals(measuringChannel.getCode()))
+                        {
+                            Element measChannelNode = (Element) measPointNode.getChildNodes().item(i);
+                            valuesList = measChannelNode.getElementsByTagName("value");
+                            break label;
+                        }
+                    }
+                }
+            }
+        }
+        return valuesList;
+    }
+
     // заполнение списка measuringpoint-ов
     public void fillMeasPointListView(XML80020 xml8020) {
         ObservableList<MeasuringPoint> measPointObList = FXCollections.observableArrayList();
@@ -201,6 +277,7 @@ public class MainWindowController {
                 for (MeasuringChannel measChannel: measPoint.getMeasChannelList()) {
                     measChannel.setSelected(true);
                     measChannel.setDisable(false);
+
                 }
             } else
             {
@@ -217,6 +294,14 @@ public class MainWindowController {
         btnUnSelectAll.setDisable(false);
         btnMake80020.setDisable(false);
         btnMakeXLS.setDisable(false);
+        comboBoxAreaName.setDisable(false);
+        textViewAIIS.setDisable(false);
+        btnSaveAIIS.setDisable(false);
+        btnDelAIIS.setDisable(false);
+        radioButton30Min.setDisable(false);
+        radioButton60Min.setDisable(false);
+        checkBoxDelColumns.setDisable(false);
+        checkBoxShowIntervals.setDisable(false);
 
         labelCountMeasPoints.setText(Integer.toString(measPointObList.size()));
         labelSelectedMeasPoints.setText(labelCountMeasPoints.getText());
@@ -242,6 +327,8 @@ public class MainWindowController {
             if (!measuringChannel.isCommercialInfo()) {
                 // помечаем этот канал курсивом в measChanelListView
                 measuringChannel.setFont(Font.font("System", FontPosture.ITALIC, -1));
+                //if (measuringChannel.isFocused())
+                //measuringChannel.setTextFill(Color.RED);
             }
         }
     }
@@ -313,8 +400,8 @@ public class MainWindowController {
         String senderName = settingsWinControl.textFieldName.getText();
         String senderINN = settingsWinControl.textFieldINN.getText();
         String areaName;
-        if (choiceBoxAreaName.getSelectionModel().getSelectedItem() != null)
-            areaName = choiceBoxAreaName.getSelectionModel().getSelectedItem().toString();
+        if (comboBoxAreaName.getItems() != null)
+            areaName = comboBoxAreaName.getSelectionModel().getSelectedItem();
         else
             areaName = "";
         String areaINN = textViewAIIS.getText();
@@ -354,5 +441,8 @@ public class MainWindowController {
         stage.close();
     }
 
-
+    // показ окна "О программе"
+    public void showAboutWindow(ActionEvent actionEvent) {
+        aboutWindow.showAndWait();
+    }
 }

@@ -290,21 +290,21 @@ public class XML80020 extends XmlClass {
         for (Area area : this.getAreaList()) {
             List<MeasuringPoint> measPointList = area.getMeasPointList();
             for (int i = 0; i < measPointList.size(); i++) {
+                // если measurepoint отмечен копируем текущий measpoint в areaNode xmlNewDoc-а через
+                // вспомогательный элемент, напрямую нельзя добавлять узел не из текущего xmlNewDoc-а
                 if (measPointList.get(i).isSelected()) {
-                    List<MeasuringChannel> measChannelList = measPointList.get(i).getMeasChannelList();
-                    // проверяем в обратном порядке отмечены ли measchannel-ы и если да, то
-                    // удаляем их из текущего узла measpoint из MeasPointNodeList
-                    for (int j = measChannelList.size() - 1; j >= 0; j--) {
-                        if (!measChannelList.get(j).isSelected()) {
-                            area.getMeasPointNodeList().get(i).removeChild(area.getMeasPointNodeList().get(i).
-                                    getChildNodes().item(j));
-                        }
-                    }
-                    // копируем текущий measpoint через вспомогательный элемент в areaNode
-                    // напрямую нельзя добавлять узел не из текущего xmlNewDoc-а
                     Element  copyNode = (Element) area.getMeasPointNodeList().get(i);
                     Element imported = (Element) xmlNewDoc.importNode(copyNode, true);
                     areaNode.appendChild(imported);
+
+                    List<MeasuringChannel> measChannelList = measPointList.get(i).getMeasChannelList();
+                    // проверяем в обратном порядке отмечены ли measchannel-ы и если да, то
+                    // удаляем их из только что добавленного узла imported
+                    for (int j = measChannelList.size() - 1; j >= 0; j--) {
+                        if (!measChannelList.get(j).isSelected()) {
+                            imported.removeChild(imported.getChildNodes().item(j));
+                        }
+                    }
                 }
             }
         }

@@ -17,7 +17,7 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception {
         Parent mainWin = FXMLLoader.load(getClass().getResource(".." + slash + "FXML" +
                 slash + "MainWindow.fxml"));
-        primaryStage.setTitle("АСКУЭ 1.0");
+        primaryStage.setTitle("АСКУЭ");
         Scene mainScene = new Scene(mainWin);
         primaryStage.setScene(mainScene);
         primaryStage.show();

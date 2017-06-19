@@ -80,7 +80,7 @@
             <Insets left="15.0" />
          </GridPane.margin>
       </CheckBox>
-      <Button mnemonicParsing="false" onAction="#selectSaveDir" prefHeight="31.0" prefWidth="36.0" text="..." GridPane.columnIndex="1" GridPane.rowIndex="7" GridPane.valignment="BOTTOM">
+      <Button fx:id="btnSelectSaveDir" mnemonicParsing="false" onAction="#selectSaveDir" prefHeight="31.0" prefWidth="36.0" text="..." GridPane.columnIndex="1" GridPane.rowIndex="7" GridPane.valignment="BOTTOM">
          <GridPane.margin>
             <Insets right="15.0" />
          </GridPane.margin>

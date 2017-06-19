@@ -6,9 +6,11 @@ import Classes.XmlClass;
 import Classes.XmlTag.Area;
 import Classes.XmlTag.MeasuringChannel;
 import Classes.XmlTag.MeasuringPoint;
+import Classes.XmlUtil;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -24,16 +26,18 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.stage.*;
 import javafx.util.StringConverter;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import javax.xml.transform.TransformerException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
 
 import static Classes.Main.slash;
 import static Classes.XmlClass.messageWindow;
@@ -59,7 +63,12 @@ public class MainWindowController {
     public Button btnDelAIIS;
     public CheckBox checkBoxDelColumns;
     public CheckBox checkBoxShowIntervals;
+    public CheckBox checkBoxBatch;
+    public Button btnReload;
     private List<File> fileList = new ArrayList<>();
+    private boolean controlsEnabled = false;
+
+    private Map<String, String> subjects;
     private XML80020 xml8020;
     private Stage settingsStage;
     private Stage dataStage;
@@ -70,7 +79,7 @@ public class MainWindowController {
     private Alert aboutWindow = new Alert(Alert.AlertType.INFORMATION);
 
     @FXML
-    public void initialize() {
+    private void initialize() {
         try {
             FileInputStream imageStream = new FileInputStream(System.getProperty("user.dir")+ slash +
                     "src" + slash + "Resources" + slash + "xls.png");
@@ -81,6 +90,12 @@ public class MainWindowController {
                     "src" + slash +"Resources" + slash + "xml.png");
             Image imageXls = new Image(imageStream);
             btnMake80020.graphicProperty().setValue(new ImageView(imageXls));
+
+            imageStream = new FileInputStream( System.getProperty("user.dir")+ slash +
+                    "src" + slash +"Resources" + slash + "reload--.png");
+            Image imageReload = new Image(imageStream);
+            btnReload.graphicProperty().setValue(new ImageView(imageReload));
+
 
             // при инициализации гл. окна программы создаем окно с настройками
             FXMLLoader fxmlLoader = new FXMLLoader();
@@ -134,10 +149,8 @@ public class MainWindowController {
                                                                                new_value) -> {
             if (new_value != null) {
                 displayAllXMLData(fileList.get(filesListView.getSelectionModel().getSelectedIndex()));
-            } else
-                displayAllXMLData(fileList.get(0));
+            }
         });
-
 
         // при нажатии на строку с measuringpoint-ом получаем его код и если
         // имеется некоммерч. информация красим красным label с кодом
@@ -196,9 +209,10 @@ public class MainWindowController {
                         dataStage.show();
                     });
 
-                    // добавляем слушателя на событие выбора/снятия галочки
+                    // добавляем слушателя на событие выбора/снятия галочки с канала
                     // если галочки сняты со всех каналов, то снимаем галочку с текущ. measuringPoint-а
                     measuringChannel.setOnAction(event -> {
+
                         int countDeselected = 0;
                         for (MeasuringChannel measChannel: measuringPoint.getMeasChannelList()) {
                             if (!measChannel.isSelected())
@@ -235,6 +249,23 @@ public class MainWindowController {
                     }
 
                 }));
+        // добавляем слушателя к выбору значения имени субъекта
+        comboBoxAreaName.valueProperty().addListener((observable, oldValue, newValue) -> {
+            // при выборе субъекта получаем из map-ы subjects значение кода АИИС
+            // флаг того, что в комбо-бокс введено новое значение субъекта, ранее там не
+            // не содержавшееся
+            boolean isNewSubject = true;
+            for (Map.Entry<String, String> pair : subjects.entrySet()) {
+                if (pair.getValue().equals(newValue)) {
+                    textViewAIIS.setText(pair.getKey());
+                    isNewSubject = false;
+                    break;
+                }
+            }
+            // если это новое значение, то не не нужно для него искать настройки
+            // ищем настройки только при выборе значений из уже имеющихся в комбо-боксе
+            if (!isNewSubject) applySubjectSettings();
+        });
     }
 
     // метод возвращает список узлов value переданного measuringPoint-а и узла measuringChannel в нем
@@ -261,7 +292,7 @@ public class MainWindowController {
     }
 
     // заполнение списка measuringpoint-ов
-    public void fillMeasPointListView(XML80020 xml8020) {
+    private void fillMeasPointListView(XML80020 xml8020) {
         ObservableList<MeasuringPoint> measPointObList = FXCollections.observableArrayList();
         // помещаем все measuringPoint-ы из всех area в measPointObList
         for (Area area: xml8020.getAreaList()){
@@ -277,7 +308,6 @@ public class MainWindowController {
                 for (MeasuringChannel measChannel: measPoint.getMeasChannelList()) {
                     measChannel.setSelected(true);
                     measChannel.setDisable(false);
-
                 }
             } else
             {
@@ -288,23 +318,31 @@ public class MainWindowController {
                 int countMeasPoints = Integer.parseInt(labelSelectedMeasPoints.getText());
                 labelSelectedMeasPoints.setText(Integer.toString(countMeasPoints - 1));
             }
+
         }));
         // после того, как список measuringpoint-ов заполнен делаем кнопки активными
-        btnSelectAll.setDisable(false);
-        btnUnSelectAll.setDisable(false);
-        btnMake80020.setDisable(false);
-        btnMakeXLS.setDisable(false);
-        comboBoxAreaName.setDisable(false);
-        textViewAIIS.setDisable(false);
-        btnSaveAIIS.setDisable(false);
-        btnDelAIIS.setDisable(false);
-        radioButton30Min.setDisable(false);
-        radioButton60Min.setDisable(false);
-        checkBoxDelColumns.setDisable(false);
-        checkBoxShowIntervals.setDisable(false);
-
+        // флаг доступности контролов установлен в false
+        if (!controlsEnabled) {
+            btnSelectAll.setDisable(false);
+            btnUnSelectAll.setDisable(false);
+            btnMake80020.setDisable(false);
+            btnMakeXLS.setDisable(false);
+            comboBoxAreaName.setDisable(false);
+            btnReload.setDisable(false);
+            textViewAIIS.setDisable(false);
+            btnSaveAIIS.setDisable(false);
+            btnDelAIIS.setDisable(false);
+            radioButton30Min.setDisable(false);
+            radioButton60Min.setDisable(false);
+            checkBoxDelColumns.setDisable(false);
+            checkBoxShowIntervals.setDisable(false);
+            // ставим флаг доступности контролов в true
+            controlsEnabled = true;
+        }
         labelCountMeasPoints.setText(Integer.toString(measPointObList.size()));
         labelSelectedMeasPoints.setText(labelCountMeasPoints.getText());
+        // загружаем настройки выбранных каналов, если такие найдутся
+        loadSubjectSettings();
         // выбираем первый элемент в списке measPointListView
         measPointListView.getSelectionModel().selectFirst();
         measPointListView.scrollTo(0);
@@ -313,11 +351,10 @@ public class MainWindowController {
     }
 
     // заполнение списка measuringchannel-ов переданного measuringPoint-а
-    public void fillMeasChannelListView(MeasuringPoint measuringPoint) {
+    private void fillMeasChannelListView(MeasuringPoint measuringPoint) {
         ObservableList<MeasuringChannel> measChannelObList = FXCollections.observableArrayList();
         measChannelObList.addAll(measuringPoint.getMeasChannelList());
         measChannelListView.setItems(measChannelObList);
-
         // со всеми  measuringchannel-ами делаем:
         for (MeasuringChannel measuringChannel: measuringPoint.getMeasChannelList()) {
             // каждому measuringchannel-у (а он у нас наследуется от CheckBox)
@@ -327,14 +364,35 @@ public class MainWindowController {
             if (!measuringChannel.isCommercialInfo()) {
                 // помечаем этот канал курсивом в measChanelListView
                 measuringChannel.setFont(Font.font("System", FontPosture.ITALIC, -1));
-                //if (measuringChannel.isFocused())
-                //measuringChannel.setTextFill(Color.RED);
             }
         }
     }
 
+    private void loadSubjectSettings(){
+        textViewAIIS.setText("");
+        this.subjects = new HashMap<>();
+        Document xmlDoc = settingsWinControl.getSettingsXmlDoc();
+        NodeList subjectNodeList = xmlDoc.getDocumentElement().getElementsByTagName("subject");
+        String senderINN = xml8020.getSender().getInn();
+        String measuringPointsNum = Integer.toString(measPointListView.getItems().size());
+        ObservableList<String> areaNameObList = FXCollections.observableArrayList();
+        String subjectINN;
+        for (int i = 0; i < subjectNodeList.getLength(); i++) {
+            subjectINN = subjectNodeList.item(i).getAttributes().getNamedItem("INN").getNodeValue();
+            if (subjectINN.equals(senderINN) &&
+                    subjectNodeList.item(i).getAttributes().getNamedItem("amount").getNodeValue().
+                            equals(measuringPointsNum)) {
+                subjects.put(subjectNodeList.item(i).getAttributes().getNamedItem("code").getNodeValue(),
+                        subjectNodeList.item(i).getAttributes().getNamedItem("name").getNodeValue());
+            }
+        }
+        areaNameObList.addAll(subjects.values());
+        comboBoxAreaName.setItems(areaNameObList);
+    }
+
     // выбор xml-файлов через диалог. окно
-    public void selectXMLFiles(ActionEvent actionEvent) {
+    @FXML
+    private void selectXMLFiles(ActionEvent actionEvent) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setInitialDirectory(new File("D:\\Работа\\Макеты\\80020\\Калмыки")); /// удалить потом!
         fileChooser.setTitle("Выберите файлы XML");
@@ -364,6 +422,7 @@ public class MainWindowController {
                 }
                 filesListView.setItems(fileNames);
                 labelCountXMLFiles.setText(Integer.toString(fileNames.size()));
+                checkBoxBatch.setDisable(false);
                 filesListView.getSelectionModel().selectFirst();
             }
         }
@@ -371,15 +430,15 @@ public class MainWindowController {
 
     // показ данных из файла file (чтение из xml-файла, заполнение списка measuringpoint-ов и
     // measuringchannel-ов)
-    public void displayAllXMLData (File file) {
+    private void displayAllXMLData (File file) {
         xml8020 = new XML80020(file);
         xml8020.loadDataFromXML();
         fillMeasPointListView(xml8020);
-        fillMeasChannelListView ((MeasuringPoint) measPointListView.getSelectionModel().getSelectedItem());
     }
 
     // выбор всех measuringpoint-ов (вызывается при нажатии на кнопку [ v ])
-    public void selectAllMeasPoints(ActionEvent actionEvent) {
+    @FXML
+    private void selectAllMeasPoints(ActionEvent actionEvent) {
         for (Object measPoint: measPointListView.getItems()) {
             MeasuringPoint measuringPoint = (MeasuringPoint)measPoint;
             measuringPoint.setSelected(true);
@@ -387,7 +446,8 @@ public class MainWindowController {
     }
 
     // снятие выбора со всех measuringpoint-ов (вызывается при нажатии на кнопку [  ])
-    public void unSelectAllMeasPoints(ActionEvent actionEvent) {
+    @FXML
+    private void unSelectAllMeasPoints(ActionEvent actionEvent) {
         for (Object measPoint: measPointListView.getItems()) {
             MeasuringPoint measuringPoint = (MeasuringPoint)measPoint;
             measuringPoint.setSelected(false);
@@ -395,46 +455,129 @@ public class MainWindowController {
     }
 
     // создание xml- файла (вызывается при нажатии на кнопку "Создать макет XML")
-    public void makeXML(ActionEvent actionEvent) {
+    @FXML
+    private void makeXML(ActionEvent actionEvent) {
         // получение значений элементов окна настроек через переменную settingsWinControl
         String senderName = settingsWinControl.textFieldName.getText();
         String senderINN = settingsWinControl.textFieldINN.getText();
         String areaName;
+        String messNumber = "";
         if (comboBoxAreaName.getItems() != null)
             areaName = comboBoxAreaName.getSelectionModel().getSelectedItem();
         else
             areaName = "";
         String areaINN = textViewAIIS.getText();
         String messVersion = settingsWinControl.textFieldVersion.getText();
-
-        int num = Integer.parseInt(settingsWinControl.textFieldNumber.getText());
-        if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
-            num = 0;
-        String messNumber = Integer.toString(num + 1); // увеличиваем на 1 номер message-а
-        settingsWinControl.textFieldNumber.setText(messNumber);
-        settingsWinControl.saveNumber(messNumber); // сразу сохраняем новый номер в файл настроек
-
         String senderAIIS = settingsWinControl.textFieldAIIS.getText();
         String newDLSavingTime;
         String autoSaveDir;
         if (settingsWinControl.radioButtonWinter.isSelected())
-            newDLSavingTime = "0"; else
+            newDLSavingTime = "0";
+        else
             newDLSavingTime = "1";
         if (settingsWinControl.checkBoxAutoSave.isSelected())
-            autoSaveDir = settingsWinControl.textFieldSavePath.getText(); else
+            autoSaveDir = settingsWinControl.textFieldSavePath.getText();
+        else
             autoSaveDir = null; // если автосозранение не стоит, то передаем значение null
 
-        xml8020.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber, newDLSavingTime,
-                senderAIIS, autoSaveDir);
+        String outFileName;
+        String outDirName;
+
+        if (autoSaveDir != null) { // если обрабатываем только выделенный файл
+            outDirName = autoSaveDir;
+        }
+        else { // если передали null-е значение, то сохраняем в ту же папку
+            // в подпапку с именем класса макета (80020 или 80040)
+            // если она не сущ., то создаем ее
+            outDirName = xml8020.getFile().getParent() + slash + xml8020.getMessage().getMessageClass();
+            if (!Files.exists(Paths.get(outDirName)))
+                new File (outDirName).mkdir();
+        }
+
+        if (!checkBoxBatch.isSelected()) { // если не пакетная обработка
+            int num = Integer.parseInt(settingsWinControl.textFieldNumber.getText());
+            if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
+                num = 0;
+            messNumber = Integer.toString(num + 1); // увеличиваем на 1 номер message-а
+            settingsWinControl.textFieldNumber.setText(messNumber);
+            // под этим именем сохраняем файл
+            String fileName = xml8020.getMessage().getMessageClass() + "_" +
+                    senderINN +"_" +
+                    xml8020.getDateTime().getDay() + "_" +
+                    messNumber + "_" +
+                    senderAIIS + ".xml";
+
+            outFileName = outDirName + slash + fileName;
+            try {
+                xml8020.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber,
+                        newDLSavingTime, outFileName);
+            }
+            catch (TransformerException e) {
+                messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
+                        " завершена неудачно!", Alert.AlertType.ERROR);
+                return;
+            }
+        } else // если пакетная обработка
+        {
+            int num = Integer.parseInt(settingsWinControl.textFieldNumber.getText());
+            // запоминаем данные первого xml-файла в списке
+            XML80020 xmlFirst = xml8020;
+            for (File file : fileList) {
+                if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
+                    num = 0;
+                num++; // увеличиваем на 1 номер message-а
+                messNumber = Integer.toString(num);
+                XML80020 xmlTemp = xml8020;
+                xml8020 = new XML80020(file);
+                xml8020.loadDataFromXML();
+                for (int i = 0; i < xml8020.getAreaList().size(); i++) {
+                    Area area = xml8020.getAreaList().get(i);
+                    for (int j = 0; j < area.getMeasPointList().size(); j++) {
+                        MeasuringPoint measPoint = area.getMeasPointList().get(j);
+                        measPoint.setSelected(xmlTemp.getAreaList().get(i).getMeasPointList().get(j).isSelected());
+                        for (int k = 0; k < measPoint.getMeasChannelList().size(); k++) {
+                            MeasuringChannel measChannel = measPoint.getMeasChannelList().get(k);
+                            measChannel.setSelected(xmlTemp.getAreaList().get(i).getMeasPointList().get(j).
+                                    getMeasChannelList().get(k).isSelected());
+                        }
+                    }
+                }
+                // под этим именем сохраняем файл
+                String fileName = xml8020.getMessage().getMessageClass() + "_" +
+                        senderINN +"_" +
+                        xml8020.getDateTime().getDay() + "_" +
+                        messNumber + "_" +
+                        senderAIIS + ".xml";
+
+                outFileName = outDirName + slash + fileName;
+                try {
+                    xml8020.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber,
+                            newDLSavingTime, outFileName);
+                }
+                catch (TransformerException e) {
+                    messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
+                            " завершена неудачно!", Alert.AlertType.ERROR);
+                    return;
+                }
+            }
+            // текущему xml-файлу возращаем данные первого файла в списке (он является "выделенным" в списке)
+            xml8020 = xmlFirst;
+        }
+        messageWindow.showModalWindow("Выполнено", "Данные сохранены в папке " + outDirName,
+                Alert.AlertType.INFORMATION);
+        settingsWinControl.textFieldNumber.setText(messNumber);
+        settingsWinControl.saveNumber(messNumber); // сразу сохраняем новый номер в файл настроек
     }
 
     // показ окна с настройками (вызывается при нажатии на пункт меню НАСТРОЙКИ)
-    public void showSettingWindow(ActionEvent actionEvent) {
+    @FXML
+    private void showSettingWindow(ActionEvent actionEvent) {
         settingsStage.show();
     }
 
     // закрытие приложения (вызывается при нажатии на пункт меню ВЫХОД)
-    public void closeApplication(ActionEvent actionEvent) {
+    @FXML
+    private void closeApplication(ActionEvent actionEvent) {
         // получаем окно по любому контролу (в данном случае по кнопке btnMake80020)
         // т.к. его нельзя получить из MenuItem в actionEvent
         Stage stage = (Stage) btnMake80020.getScene().getWindow();
@@ -442,7 +585,175 @@ public class MainWindowController {
     }
 
     // показ окна "О программе"
-    public void showAboutWindow(ActionEvent actionEvent) {
+    @FXML
+    private void showAboutWindow(ActionEvent actionEvent) {
         aboutWindow.showAndWait();
+    }
+
+    @FXML
+    private void saveAIIS(ActionEvent actionEvent) {
+        Document xmlDoc = settingsWinControl.getSettingsXmlDoc();
+        NodeList subjectNodeList = xmlDoc.getDocumentElement().getElementsByTagName("subject");
+        String aiis = textViewAIIS.getText();
+        String name = comboBoxAreaName.getValue();
+        for (int i = 0; i < subjectNodeList.getLength(); i++) {
+            if (subjectNodeList.item(i).getAttributes().getNamedItem("code").getNodeValue().equals(aiis)) {
+                XmlClass.messageWindow.showModalWindow("Внимание", "Контрагент с таким кодом АИИС уже " +
+                        "существует. Сохраните его под другим кодом!", Alert.AlertType.INFORMATION);
+                return;
+            }
+            if (subjectNodeList.item(i).getAttributes().getNamedItem("name").getNodeValue().equals(name)) {
+                XmlClass.messageWindow.showModalWindow("Внимание", "Контрагент с таким именем уже " +
+                        "существует. Сохраните его под другим названием!", Alert.AlertType.INFORMATION);
+                return;
+            }
+        }
+
+        int measuringPointNum = measPointListView.getItems().size();
+        Element subjectNode = xmlDoc.createElement("subject");
+        subjectNode.setAttribute("INN", xml8020.getSender().getInn());
+        subjectNode.setAttribute("amount", Integer.toString(measuringPointNum));
+        subjectNode.setAttribute("code", aiis);
+        subjectNode.setAttribute("name", name);
+
+        for (int i = 0; i < measuringPointNum; i++) {
+            Object object = measPointListView.getItems().get(i);
+            MeasuringPoint measuringPoint = (MeasuringPoint) object;
+            Element measPointNode = xmlDoc.createElement("measuringpoint");
+            measPointNode.setAttribute("code", measuringPoint.getCode());
+
+            if (!measuringPoint.isSelected()) {
+                subjectNode.appendChild(measPointNode);
+            } else
+            {
+                // узнаем количество "выбранных" каналов у measuringPoint-а;
+                long countSelectedChannel = measuringPoint.getMeasChannelList().stream().
+                        filter(CheckBox::isSelected).count();
+                if (countSelectedChannel != measuringPoint.getMeasChannelList().size()) {
+                    for (MeasuringChannel measuringChannel: measuringPoint.getMeasChannelList()) {
+                        if (!measuringChannel.isSelected())
+                        {
+                            Element measChannelNode = xmlDoc.createElement("measuringchannel");
+                            measChannelNode.setAttribute("code", measuringChannel.getCode());
+                            measPointNode.appendChild(measChannelNode);
+                        }
+                    }
+                    subjectNode.appendChild(measPointNode);
+                }
+            }
+        }
+
+        xmlDoc.getDocumentElement().appendChild(subjectNode);
+        try {
+            // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
+            XmlUtil.saveXMLDoc(xmlDoc, settingsWinControl.getFileName(), "windows-1251", true);
+            messageWindow.showModalWindow("Сохранение", "Настройки выбора точек измерения и " +
+                    "каналов успешно сохранены!", Alert.AlertType.INFORMATION);
+            //loadSubjectSettings();
+            subjects.put(aiis, name);
+            comboBoxAreaName.getItems().add(name);
+        }
+        catch (TransformerException e) {
+            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " +
+                    settingsWinControl.getFileName() + " завершена неудачно!", Alert.AlertType.ERROR);
+        }
+    }
+
+    @FXML
+    private void delAIIS(ActionEvent actionEvent) {
+        Optional<ButtonType> result = messageWindow.showModalWindow("Удаление настроек выбора", "Вы "+
+        "действительно хотите удалить настройки для \"" +
+                        comboBoxAreaName.getValue() + "\"?", Alert.AlertType.CONFIRMATION);
+        if (result.get() != ButtonType.OK) {
+            return;
+        }
+        Document xmlDoc = settingsWinControl.getSettingsXmlDoc();
+        NodeList subjectNodeList = xmlDoc.getDocumentElement().getElementsByTagName("subject");
+        String aiis = textViewAIIS.getText();
+        for (int i = 0; i < subjectNodeList.getLength(); i++) {
+            if (subjectNodeList.item(i).getAttributes().getNamedItem("code").getNodeValue().equals(aiis)) {
+                subjectNodeList.item(i).getParentNode().removeChild(subjectNodeList.item(i));
+                break;
+            }
+        }
+        try {
+            // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
+            XmlUtil.saveXMLDoc(xmlDoc, settingsWinControl.getFileName(), "windows-1251", true);
+            loadSubjectSettings();
+        }
+        catch (TransformerException e) {
+            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " +
+                    settingsWinControl.getFileName() + " завершена неудачно!", Alert.AlertType.ERROR);
+        }
+    }
+
+    @FXML
+    private void batchProcessing(ActionEvent actionEvent) {
+        if (checkBoxBatch.isSelected())
+        {
+            filesListView.getSelectionModel().selectFirst();
+            filesListView.setDisable(true);
+        } else
+        {
+            filesListView.setDisable(false);
+        }
+    }
+    //  обрабатываем нажатие кнопки "Обновить"
+    @FXML
+    private void reloadSubjectSettings(ActionEvent actionEvent) {
+        if (comboBoxAreaName.getValue() != null)
+            applySubjectSettings();
+    }
+    // применяем настройки выбора каналов и ТИ в соотв. с кодом АИИС в textViewAIIS
+    private void applySubjectSettings() {
+        // сначала по-умолчанию делаем "выбранными" все точки измерения и все каналы в них
+        for (Object object: measPointListView.getItems()) {
+            MeasuringPoint measuringPoint = (MeasuringPoint) object;
+            measuringPoint.setSelected(true);
+            measuringPoint.getMeasChannelList().forEach(ch -> ch.setSelected(true));
+        }
+        // если есть загруженные из файла настройки для данного субъекта
+        // то перебираем и в соот. с настроками делаем "выбранными" определенные ТИ и каналы
+        if (subjects.size() > 0) {
+            Document xmlDoc = settingsWinControl.getSettingsXmlDoc();
+            NodeList subjectNodeList = xmlDoc.getDocumentElement().getElementsByTagName("subject");
+            for (int i = 0; i < subjectNodeList.getLength(); i++) {
+                if (subjectNodeList.item(i).getAttributes().getNamedItem("code").getNodeValue().
+                        equals(textViewAIIS.getText())) {
+                    NodeList measPointsNodeList = subjectNodeList.item(i).getChildNodes();
+                    for (int j = 0; j < measPointsNodeList.getLength(); j++) {
+                        String measPointCode = measPointsNodeList.item(j).getAttributes().getNamedItem("code").
+                                getNodeValue();
+                        for (Object object: measPointListView.getItems()) {
+                            MeasuringPoint measuringpoint = (MeasuringPoint)object;
+
+                            if (measuringpoint.getCode().equals(measPointCode)) {
+                                int measChannelNum = measPointsNodeList.item(j).getChildNodes().getLength();
+                                boolean hasChannels = measChannelNum > 0;
+                                if (!hasChannels) {
+                                    measuringpoint.setSelected(false);
+                                } else
+                                {
+                                    for (int k = 0; k < measChannelNum; k++) {
+                                        for (MeasuringChannel measuringChannel: measuringpoint.getMeasChannelList()) {
+                                            if (measPointsNodeList.item(j).getChildNodes().item(k).getAttributes().
+                                                    getNamedItem("code").getNodeValue().
+                                                    equals(measuringChannel.getCode())) {
+                                                measuringChannel.setSelected(false);
+                                                break;
+                                            }
+                                        }
+
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
     }
 }

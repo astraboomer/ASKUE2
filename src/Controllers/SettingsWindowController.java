@@ -33,11 +33,20 @@ public class SettingsWindowController {
     public RadioButton radioButtonWinter;
     public RadioButton radioButtonSummer;
     public CheckBox checkBoxAutoSave;
+    public Button btnSelectSaveDir;
 
-    private Document xmlNewDoc;
+    private Document settingsXmlDoc;
+
+    public Document getSettingsXmlDoc() {
+        return settingsXmlDoc;
+    }
 
     private final String fileName = System.getProperty("user.dir")+ slash +
-            "src" + slash + "Templates" + slash + "settings.xml";
+            "src" + slash + "Resources" + slash + "settings.xml";
+
+    public String getFileName() {
+        return fileName;
+    }
 
     public String getName() {
         return textFieldName.getText();
@@ -53,30 +62,36 @@ public class SettingsWindowController {
 
         File settings = new File(fileName);
         try {
-            xmlNewDoc = XmlUtil.getXmlDoc(settings);
+            settingsXmlDoc = XmlUtil.getXmlDoc(settings);
+            XmlUtil.removeWhitespaceNodes(settingsXmlDoc.getDocumentElement());
 
-            textFieldName.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("name").
+            textFieldName.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("name").
                     getNodeValue());
-            textFieldINN.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("INN").
+            textFieldINN.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("INN").
                     getNodeValue());
-            textFieldAIIS.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("aiis_code").
+            textFieldAIIS.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("aiis_code").
                     getNodeValue());
-            textFieldORE.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("ore_code").
+            textFieldORE.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("ore_code").
                     getNodeValue());
-            textFieldODU.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("ODU").
+            textFieldODU.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("ODU").
                     getNodeValue());
-            textFieldVersion.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").
+            textFieldVersion.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("version").
                     getNodeValue());
-            textFieldNumber.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
+            textFieldNumber.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("number").
                     getNodeValue());
-            textFieldSavePath.setText(xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("savepath").
+            textFieldSavePath.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("savepath").
                     getNodeValue());
-            String dayLightSavingTime = xmlNewDoc.getDocumentElement().getAttributes().
+            String dayLightSavingTime = settingsXmlDoc.getDocumentElement().getAttributes().
                     getNamedItem("DayLightSavingTime").getNodeValue();
-            String autoSave = xmlNewDoc.getDocumentElement().getAttributes().
+            String autoSave = settingsXmlDoc.getDocumentElement().getAttributes().
                     getNamedItem("autosave").getNodeValue();
-            if (autoSave.equals("1"))
+            if (autoSave.equals("1")) {
                 checkBoxAutoSave.setSelected(true);
+            } else
+            {
+                textFieldSavePath.setDisable(true);
+                btnSelectSaveDir.setDisable(true);
+            }
             if (dayLightSavingTime.equals("0")) {
                 radioButtonWinter.setSelected(true);
             } else {
@@ -88,6 +103,17 @@ public class SettingsWindowController {
                     String val = newValue.replaceAll("\\D+", "");
                     if (!val.equals("")) textFieldNumber.setText(val); else
                         textFieldNumber.setText(oldValue);
+                }
+            });
+            // на чекбокс вешаем слушателя выбора/снятия флажка
+            checkBoxAutoSave.selectedProperty().addListener(event -> {
+                if (checkBoxAutoSave.isSelected()) {
+                    textFieldSavePath.setDisable(false);
+                    btnSelectSaveDir.setDisable(false);
+                } else
+                {
+                    textFieldSavePath.setDisable(true);
+                    btnSelectSaveDir.setDisable(true);
                 }
             });
         }
@@ -123,11 +149,11 @@ public class SettingsWindowController {
     }
 
     public void saveNumber(String newNumber) {
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("number").
                 setNodeValue(newNumber);
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
-            XmlUtil.saveXMLDoc(xmlNewDoc, fileName,"windows-1251", true);
+            XmlUtil.saveXMLDoc(settingsXmlDoc, fileName,"windows-1251", true);
         }
         catch (TransformerException e) {
             messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + fileName +
@@ -137,37 +163,38 @@ public class SettingsWindowController {
 
     // сохранение настроек в файл /Templates/settings.xml
     public void saveSettings(ActionEvent actionEvent) {
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("name").
+        XmlUtil.removeWhitespaceNodes(settingsXmlDoc.getDocumentElement());
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("name").
                 setNodeValue(textFieldName.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("INN").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("INN").
                 setNodeValue(textFieldINN.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("version").
                 setNodeValue(textFieldVersion.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("aiis_code").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("aiis_code").
                 setNodeValue(textFieldAIIS.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("ore_code").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("ore_code").
                 setNodeValue(textFieldORE.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("ODU").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("ODU").
                 setNodeValue(textFieldODU.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("number").
                 setNodeValue(textFieldNumber.getText());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("savepath").
+        settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("savepath").
                 setNodeValue(textFieldSavePath.getText());
 
         if (radioButtonWinter.isSelected())
-            xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("DayLightSavingTime").
+            settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("DayLightSavingTime").
                 setNodeValue("0"); else
-                    xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("DayLightSavingTime").
+                    settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("DayLightSavingTime").
                         setNodeValue("1");
         if (checkBoxAutoSave.isSelected())
-            xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("autosave").
+            settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("autosave").
                 setNodeValue("1"); else
-            xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("autosave").
+            settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("autosave").
                     setNodeValue("0");
 
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
-            XmlUtil.saveXMLDoc(xmlNewDoc, fileName,"windows-1251", true);
+            XmlUtil.saveXMLDoc(settingsXmlDoc, fileName,"windows-1251", true);
             closeWindow(actionEvent);
         }
         catch (TransformerException e) {

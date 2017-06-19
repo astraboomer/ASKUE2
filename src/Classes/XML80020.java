@@ -16,6 +16,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -232,13 +234,15 @@ public class XML80020 extends XmlClass {
     // сохраняем данные с новыми параметрами
     public void saveDataToXML(String senderName, String senderINN, String areaName, String areaINN,
                               String messVersion, String messNumber, String newDLSavingTime,
-                              String senderAIIS, String autoSaveDir) {
+                              String outFileName) throws TransformerException {
         File template = new File(System.getProperty("user.dir")+ slash + "src" +
                 slash + "Templates" + slash + "80020(40)_XML.xml");
         Document xmlNewDoc;
         // получаем xmlNewDoc из файла шаблона
         try {
             xmlNewDoc = XmlUtil.getXmlDoc(template);
+            // удаляем все пустые текстовые узлы дерева
+            XmlUtil.removeWhitespaceNodes(xmlNewDoc.getDocumentElement());
         }
         // если не удалось получить xmlNewDoc, то выходим из метода
         catch (FileNotFoundException e1) {
@@ -250,13 +254,11 @@ public class XML80020 extends XmlClass {
             messageWindow.showModalWindow("Ошибка", e2.getMessage(), Alert.AlertType.ERROR);
             return;
         }
-        // удаляем все пустые текстовые узлы дерева
-        XmlUtil.removeWhitespaceNodes(xmlNewDoc.getDocumentElement());
 
         // заносим новые значения атрибутов корневого узла message
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("class").setNodeValue(getMessage().
+        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("class").setTextContent(getMessage().
                 getMessageClass());
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").setNodeValue(messVersion);
+        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").setTextContent(messVersion);
         xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
                 setNodeValue(messNumber);
 
@@ -308,33 +310,7 @@ public class XML80020 extends XmlClass {
                 }
             }
         }
-        // под этим именем сохраняем файл
-        String fileName = this.getMessage().getMessageClass() + "_" +
-                senderINN +"_" +
-                this.getDateTime().getDay() + "_" +
-                messNumber + "_" +
-                senderAIIS + ".xml";
-        String outFileName;
-        String outDirName;
-        if (autoSaveDir != null) { // если передали null-е значение, то сохраняем в ту же папку
-            outDirName = autoSaveDir; // в подпапку с именем класса макета (80020 или 80040)
-            outFileName = outDirName + slash + fileName;
-        }
-        else {
-            outDirName = this.getFile().getParent() + slash + this.getMessage().getMessageClass();
-            outFileName = outDirName + slash + fileName;
-        }
-        try {
-            // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
-            messageWindow.showModalWindow("Выполнено", "Данные сохранены в папке " + outDirName,
-                    Alert.AlertType.INFORMATION);
-            XmlUtil.saveXMLDoc(xmlNewDoc, outFileName, "windows-1251", true);
-        }
-        catch (TransformerException e) {
-            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
-                    " завершена неудачно!", Alert.AlertType.ERROR);
-        }
-
+        XmlUtil.saveXMLDoc(xmlNewDoc, outFileName, "windows-1251", true);
     }
 
 }

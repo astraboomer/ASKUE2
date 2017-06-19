@@ -1,7 +1,6 @@
 package Controllers;
 
 import Classes.MeasuringData;
-import javafx.beans.value.ObservableValue;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;

@@ -3,7 +3,13 @@ package Classes;
 /**
  * Вспомогательный класс для работы с любым XML-файлом
  */
+import org.apache.poi.hssf.usermodel.HSSFAnchor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Comment;
+import org.apache.poi.xssf.usermodel.XSSFAnchor;
+import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
 import org.w3c.dom.*;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
@@ -14,11 +20,12 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.net.URL;
 
 public class XmlUtil {
 
     // возвращает DOM xml-документ с которым будет вестись вся дальнейшая работа
-    public static Document getXmlDoc (File xmlFile) throws  Exception {
+    public static Document getXmlDoc (URL xmlFile) throws  Exception {
         DocumentBuilderFactory dbf;
         DocumentBuilder db;
         dbf = DocumentBuilderFactory.newInstance();
@@ -27,7 +34,7 @@ public class XmlUtil {
         // включаем поддержку пространства имен
         dbf.setNamespaceAware(true);
         db  = dbf.newDocumentBuilder();
-        Document xmlDoc = db.parse(xmlFile);
+        Document xmlDoc = db.parse(xmlFile.openStream());
         xmlDoc.getDocumentElement().normalize();
         return xmlDoc;
     }
@@ -60,4 +67,5 @@ public class XmlUtil {
             }
         }
     }
+
 }

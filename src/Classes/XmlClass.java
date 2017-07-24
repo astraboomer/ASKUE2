@@ -75,36 +75,51 @@ public abstract class XmlClass {
         Map<String, String> failedFileList = new HashMap<>();
         validFileList.addAll(fileList);
         int measPointCount;
+        String messageClass = null;
         for (File file: fileList) {
             try {
                 DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
                 DocumentBuilder db = dbf.newDocumentBuilder();
                 Document xmlDoc = db.parse(file);
+                messageClass = xmlDoc.getDocumentElement().getAttributes().getNamedItem("class").getNodeValue();
+                String fileName = file.getName();
+                if (fileName.length() < 38)
+                    throw new FileNameException();
+
+                String fileNameClass = fileName.substring(0, 5);
+
                 measPointCount = xmlDoc.getDocumentElement().getElementsByTagName("measuringpoint").getLength();
                 if (measPointCount == 0) {
                     throw new NoMeasPointException();
                 }
+                if (!fileNameClass.contains(messageClass))
+                    throw new FileNameException();
             }
 
-            catch (NoMeasPointException e0 ) {
+            catch (FileNameException e1) {
+                validFileList.remove(file);
+                failedFileList.put(file.getName(), "Имя импортируемого файла " +
+                        "должно начинаться с " + messageClass);
+            }
+            catch (NoMeasPointException e2 ) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Отсутствуют точки измерения");
             }
-            catch (SAXParseException e1) {
+            catch (SAXParseException e3) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Ошибка разбора XML. Строка: " +
-                e1.getLineNumber() + ", символ: " + e1.getColumnNumber());
+                e3.getLineNumber() + ", символ: " + e3.getColumnNumber());
             }
 
-            catch (ParserConfigurationException e2 ) {
+            catch (ParserConfigurationException e4 ) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Серьезная ошибка конфигурации парсера");
             }
-            catch (SAXException e3) {
+            catch (SAXException e5) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Общая ошибка парсера");
             }
-            catch (IOException e4) {
+            catch (IOException e6) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Ошибка ввода/вывода. Проверьте доступность файла XML");
             }

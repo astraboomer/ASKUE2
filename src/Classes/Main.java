@@ -19,14 +19,14 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
-            Parent mainWin = FXMLLoader.load(getClass().getResource(".." + slash + "FXML" +
-                    slash + "MainWindow.fxml"));
+            //Parent mainWin = FXMLLoader.load(getClass().getResource(".." + slash + "FXML" + slash +
+            //        "MainWindow.fxml"));
+            Parent mainWin = FXMLLoader.load(getClass().getResource("/Resources/FXML/MainWindow.fxml"));
+
             primaryStage.setTitle("АСКУЭ");
             Scene mainScene = new Scene(mainWin);
             primaryStage.setScene(mainScene);
-            FileInputStream iconStream = new FileInputStream(System.getProperty("user.dir") + slash +
-                    "src" + slash + "Resources" + slash + "icon.png");
-            Image imageIcon = new Image(iconStream);
+            Image imageIcon = new Image("Resources/icon.png");
             primaryStage.getIcons().add(imageIcon);
 
             primaryStage.show();
@@ -41,8 +41,9 @@ public class Main extends Application {
             });
         }
         catch (Exception e) {
-            XmlClass.messageWindow.showModalWindow("Ошибка", e.getMessage() +
-                    ". Программа будет закрыта.", Alert.AlertType.ERROR);
+            /*XmlClass.messageWindow.showModalWindow("Ошибка", e.getMessage() +
+                    " Программа будет закрыта.", Alert.AlertType.ERROR);*/
+            e.printStackTrace();
             Platform.exit();
             System.exit(0);
         }

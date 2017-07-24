@@ -15,6 +15,7 @@ import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,7 +28,12 @@ import static Classes.Main.slash;
  * Created by Сергей on 12.05.2017.
  */
 public class XML80020 extends XmlClass {
-    private List<Area> areaList;
+    public static final String activeInput = "Активная энергия, прием";
+    public static final String activeOutput = "Активная энергия, отдача";
+    public static final String reactiveInput = "Реактивная энергия, прием";
+    public static final String reactiveOutput = "Реактивная энергия, отдача";
+
+    public List<Area> areaList;
     public List<Area> getAreaList() {
         return areaList;
     }
@@ -37,7 +43,7 @@ public class XML80020 extends XmlClass {
     /*
     Получение поля message этого класса из xml-документа
      */
-    public void setMessage (Document xmlDoc) {
+    private void setMessage (Document xmlDoc) {
         Message message = new Message();
         message.setMessageClass(xmlDoc.getDocumentElement().getAttributes().getNamedItem("class").getNodeValue());
         message.setVersion(xmlDoc.getDocumentElement().getAttributes().getNamedItem("version").getNodeValue());
@@ -47,7 +53,7 @@ public class XML80020 extends XmlClass {
     /*
     Получение поля dateTime этого класса из xml-документа
      */
-    public void setDateTime (Document xmlDoc) {
+    private void setDateTime (Document xmlDoc) {
         DateTime dateTime = new DateTime();
         NodeList messageChildNodeList = xmlDoc.getDocumentElement().getChildNodes();
         int messageChildNodeCount = messageChildNodeList.getLength();
@@ -74,7 +80,7 @@ public class XML80020 extends XmlClass {
     /*
     Получение поля sender этого класса из xml-документа
      */
-    public void setSender (Document xmlDoc) {
+    private void setSender (Document xmlDoc) {
         Sender sender = new Sender();
         NodeList messageChildNodeList = xmlDoc.getDocumentElement().getChildNodes();
         int messageChildNodeCount = messageChildNodeList.getLength();
@@ -111,8 +117,8 @@ public class XML80020 extends XmlClass {
                 measuringChannel.setCode(measPointChildNodeList.item(i).getAttributes().getNamedItem("code").
                         getNodeValue());
                 measuringChannel.setAliasName(getAliasNameChannelByCode(measuringChannel.getCode()));
-                measuringChannel.setDesc(measPointChildNodeList.item(i).getAttributes().getNamedItem("desc").
-                        getNodeValue());
+                /*measuringChannel.setDesc(measPointChildNodeList.item(i).getAttributes().getNamedItem("desc").
+                        getNodeValue());*/
                 NodeList measChannelChildNodeList = measPointChildNodeList.item(i).getChildNodes();
                 int measChannelChildNodeCount = measChannelChildNodeList.getLength();
                 for (int j = 0; j < measChannelChildNodeCount; j++) { // перебираем все дочер. узлы measuringchannel-а
@@ -150,7 +156,7 @@ public class XML80020 extends XmlClass {
     /*
     Получение списка элементов area из xml-документа
      */
-    public void setAreaList (Document xmlDoc) {
+    private void setAreaList (Document xmlDoc) {
         List<Area> areaList = new ArrayList<>();
         // получаем все узлы area из xml-документа
         NodeList areaNodeList = xmlDoc.getDocumentElement().getElementsByTagName("area");
@@ -175,9 +181,9 @@ public class XML80020 extends XmlClass {
                 if (areaChildNode.item(j).getNodeName().equals("measuringpoint")) {
                     // получаем элемент measPointList-а по узлу measuringpoint
                     MeasuringPoint measuringPoint = setMeasurePoint(areaChildNode.item(j));
-                    // добавляем этот элемент в список measPointList класса area
+                    // добавляем этот элемент в список measPointList объекта area
                     measuringPointList.add(measuringPoint);
-                    // добавляем этот узел measuringpoint в список measPointNodeList класса area
+                    // добавляем этот узел measuringpoint в список measPointNodeList объекта area
                     measPointNodeList.add(areaChildNode.item(j));
                 }
             }
@@ -189,17 +195,17 @@ public class XML80020 extends XmlClass {
     }
 
     // получаем название канала по его последней цифре кода
-    public String getAliasNameChannelByCode (String code) {
+    private String getAliasNameChannelByCode (String code) {
         char ch = code.charAt(1);
         String result = "Неизвестный канал";
         switch (ch) {
-            case '1' : result = "Активная энергия, прием";
+            case '1' : result = activeInput;
                 break;
-            case '2' : result = "Активная энергия, отдача";
+            case '2' : result = activeOutput;
                 break;
-            case '3' : result = "Реактивная энергия, прием";
+            case '3' : result = reactiveInput;
                 break;
-            case '4' : result = "Реактивная энергия, отдача";
+            case '4' : result = reactiveOutput;
                 break;
         }
         return result;
@@ -211,7 +217,7 @@ public class XML80020 extends XmlClass {
         // заполнение полей класса данными из xml-документа
         Document xmlDoc;
         try {
-            xmlDoc = XmlUtil.getXmlDoc(getFile());
+            xmlDoc = XmlUtil.getXmlDoc(getFile().toURI().toURL());
         }
         catch (FileNotFoundException e1) {
             messageWindow.showModalWindow("Ошибка", "Не найден файл " + getFile().getAbsoluteFile(),
@@ -235,8 +241,7 @@ public class XML80020 extends XmlClass {
     public void saveDataToXML(String senderName, String senderINN, String areaName, String areaINN,
                               String messVersion, String messNumber, String newDLSavingTime,
                               String outFileName) throws TransformerException {
-        File template = new File(System.getProperty("user.dir")+ slash + "src" +
-                slash + "Templates" + slash + "80020(40)_XML.xml");
+        URL template = this.getClass().getResource("/Resources/80020(40)_XML.xml");
         Document xmlNewDoc;
         // получаем xmlNewDoc из файла шаблона
         try {
@@ -247,7 +252,7 @@ public class XML80020 extends XmlClass {
         // если не удалось получить xmlNewDoc, то выходим из метода
         catch (FileNotFoundException e1) {
             messageWindow.showModalWindow("Ошибка", "Данные не сохранены! Отсутствует файл шаблона: " +
-                    template.getAbsolutePath(), Alert.AlertType.ERROR);
+                    template.toString(), Alert.AlertType.ERROR);
             return;
         }
         catch (Exception e2) {

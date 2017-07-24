@@ -12,7 +12,9 @@ import org.w3c.dom.Document;
 
 import javax.xml.transform.TransformerException;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 
 import static Classes.Main.slash;
 import static Classes.XmlClass.messageWindow;
@@ -41,8 +43,7 @@ public class SettingsWindowController {
         return settingsXmlDoc;
     }
 
-    private final String fileName = System.getProperty("user.dir")+ slash +
-            "src" + slash + "Resources" + slash + "settings.xml";
+    private final String fileName = "settings.xml";
 
     public String getFileName() {
         return fileName;
@@ -61,8 +62,9 @@ public class SettingsWindowController {
         radioButtonSummer.setToggleGroup(toggleGroup);
 
         File settings = new File(fileName);
+        //InputStream fis = new FileInputStream((getClass().getResourceAsStream(fileName)));
         try {
-            settingsXmlDoc = XmlUtil.getXmlDoc(settings);
+            settingsXmlDoc = XmlUtil.getXmlDoc(settings.toURI().toURL());
             XmlUtil.removeWhitespaceNodes(settingsXmlDoc.getDocumentElement());
 
             textFieldName.setText(settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("name").
@@ -119,7 +121,7 @@ public class SettingsWindowController {
         }
         catch (FileNotFoundException e1) {
             messageWindow.showModalWindow("Ошибка", "Невозможно загрузить настройки. Программа будет закрыта. "+
-                    "Проверьте наличие файла " + settings.getAbsolutePath(), Alert.AlertType.ERROR);
+                    "Проверьте наличие файла " + settings.getName(), Alert.AlertType.ERROR);
             //завершаем работу программы
             Platform.exit();
             System.exit(0);
@@ -134,6 +136,11 @@ public class SettingsWindowController {
 
     // закрытие окна настроек
     public void closeWindow(ActionEvent actionEvent) {
+        if (textFieldNumber.getText().length() == 0) {
+            messageWindow.showModalWindow("Внимание", "Номер файла не должен быть пустым",
+                    Alert.AlertType.INFORMATION);
+            return;
+        }
         Node node = ((Node)actionEvent.getSource());
         Stage stage = (Stage) node.getScene().getWindow();
         stage.close();
@@ -149,6 +156,7 @@ public class SettingsWindowController {
     }
 
     public void saveNumber(String newNumber) {
+
         settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("number").
                 setNodeValue(newNumber);
         try {
@@ -163,6 +171,11 @@ public class SettingsWindowController {
 
     // сохранение настроек в файл /Templates/settings.xml
     public void saveSettings(ActionEvent actionEvent) {
+        if (textFieldNumber.getText().length() == 0) {
+            messageWindow.showModalWindow("Внимание", "Номер файла не должен быть пустым",
+                    Alert.AlertType.INFORMATION);
+            return;
+        }
         XmlUtil.removeWhitespaceNodes(settingsXmlDoc.getDocumentElement());
         settingsXmlDoc.getDocumentElement().getAttributes().getNamedItem("name").
                 setNodeValue(textFieldName.getText());

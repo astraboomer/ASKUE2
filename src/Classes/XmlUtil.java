@@ -3,15 +3,12 @@ package Classes;
 /**
  * Вспомогательный класс для работы с любым XML-файлом
  */
-import org.apache.poi.hssf.usermodel.HSSFAnchor;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.usermodel.Comment;
-import org.apache.poi.xssf.usermodel.XSSFAnchor;
-import org.apache.poi.xssf.usermodel.XSSFClientAnchor;
 import org.w3c.dom.*;
+import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -19,13 +16,22 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URL;
 
 public class XmlUtil {
+    // создает новый DOM-документ
+    public static Document createXmlDoc() throws IOException, ParserConfigurationException {
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        Document xmlDoc = db.newDocument();
+        xmlDoc.setXmlStandalone(true);
+        return xmlDoc;
+    }
 
-    // возвращает DOM xml-документ с которым будет вестись вся дальнейшая работа
-    public static Document getXmlDoc (URL xmlFile) throws  Exception {
+    // возвращает DOM-документ xml-файла с которым будет вестись вся дальнейшая работа
+    public static Document getXmlDoc (URL xmlFile) throws  IOException, SAXException,
+    ParserConfigurationException{
         DocumentBuilderFactory dbf;
         DocumentBuilder db;
         dbf = DocumentBuilderFactory.newInstance();
@@ -38,9 +44,10 @@ public class XmlUtil {
         xmlDoc.getDocumentElement().normalize();
         return xmlDoc;
     }
+
     // метод сохраняет xmlDoc в файл fileName с кодировкой encoding и необходимостью форматирования
     public static void saveXMLDoc (Document xmlDoc, String fileName, String encoding, boolean needFormat)
-    throws TransformerException{
+    throws TransformerException {
             removeWhitespaceNodes(xmlDoc.getDocumentElement());
             TransformerFactory tf = TransformerFactory.newInstance();
             Transformer transformer = tf.newTransformer();

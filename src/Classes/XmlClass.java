@@ -28,7 +28,7 @@ public abstract class XmlClass {
     private DateTime dateTime;
     private Sender sender;
     public static MessageWindow messageWindow = new MessageWindow(Alert.AlertType.INFORMATION);
-    public static Alert errorFilesWindow = new Alert(Alert.AlertType.ERROR);
+    public static TextWindow textWindow = new TextWindow(Alert.AlertType.ERROR);
 
     public File getFile() {
         return file;
@@ -75,13 +75,11 @@ public abstract class XmlClass {
         Map<String, String> failedFileList = new HashMap<>();
         validFileList.addAll(fileList);
         int measPointCount;
-        String messageClass = null;
         for (File file: fileList) {
             try {
                 DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
                 DocumentBuilder db = dbf.newDocumentBuilder();
                 Document xmlDoc = db.parse(file);
-                messageClass = xmlDoc.getDocumentElement().getAttributes().getNamedItem("class").getNodeValue();
                 String fileName = file.getName();
                 if (fileName.length() < 38)
                     throw new FileNameException();
@@ -92,14 +90,15 @@ public abstract class XmlClass {
                 if (measPointCount == 0) {
                     throw new NoMeasPointException();
                 }
-                if (!fileNameClass.contains(messageClass))
+                if (!(fileNameClass.contains("80020") || fileNameClass.contains("80040") ||
+                        fileNameClass.contains("80025")))
                     throw new FileNameException();
             }
 
             catch (FileNameException e1) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Имя импортируемого файла " +
-                        "должно начинаться с " + messageClass);
+                        "должно начинаться с 80020, 80040 или 80025");
             }
             catch (NoMeasPointException e2 ) {
                 validFileList.remove(file);
@@ -130,24 +129,8 @@ public abstract class XmlClass {
         }
 
         if (failedFileList.size() > 0) {
-            errorFilesWindow.setTitle("Ошибка");
-            errorFilesWindow.setHeaderText(null);
-            TextArea textArea = new TextArea(text);
-            textArea.setEditable(false);
-            textArea.setWrapText(true);
-            textArea.setMaxWidth(Double.MAX_VALUE);
-            textArea.setMaxHeight(Double.MAX_VALUE);
-
-            GridPane.setVgrow(textArea, Priority.ALWAYS);
-            GridPane.setHgrow(textArea, Priority.ALWAYS);
-
-            GridPane expContent = new GridPane();
-            expContent.setMaxWidth(Double.MAX_VALUE);
-            expContent.add(textArea, 0, 0);
-
-            errorFilesWindow.getDialogPane().setHeaderText("Следующие файлы содержат ошибки и не будут загружены");
-            errorFilesWindow.getDialogPane().setContent(expContent);
-            errorFilesWindow.showAndWait();
+            textWindow.showModalWindow("Ошибка", "Следующие файлы содержат ошибки и не будут загружены",
+                    text, Alert.AlertType.ERROR);
         }
         return validFileList;
     }

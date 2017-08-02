@@ -23,6 +23,7 @@ import javafx.scene.text.FontPosture;
 import javafx.stage.*;
 import javafx.util.StringConverter;
 import org.apache.poi.common.usermodel.HyperlinkType;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Hyperlink;
@@ -32,15 +33,19 @@ import org.w3c.dom.*;
 
 import javax.xml.transform.TransformerException;
 import java.io.*;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.*;
 
 import static Classes.Main.slash;
 import static Classes.XML80020.*;
 import static Classes.XmlClass.messageWindow;
+import static Classes.XmlUtil.createXmlDoc;
 
 public class MainWindowController {
 
@@ -83,63 +88,452 @@ public class MainWindowController {
     private final static int[] colorNums = new int[] {11, 12, 20, 14, 62, 23, 25, 44, 28, 29, 45, 46, 52, 60, 49, 40};
     // массив списков ячеек Excel из строки с кодами ТИ в шапке, на которые срабатывает обходной выключатель
     private List<XSSFCell>[] extCodes;
+    private File lastOpenDir;
 
-    @FXML
-    private void initialize() {
+    @FXML private TextField textFieldOre;
+    @FXML private TextField textFieldExcel;
+    @FXML private TextField textFieldTimeZone;
+    @FXML private TextField textField220;
+    @FXML private TextField textField330;
+    @FXML private ComboBox<String> comboBoxMonth;
+    @FXML private ComboBox<String> comboBoxGMT;
+    @FXML private ComboBox<String> comboBoxSubjectOre;
+    @FXML private RadioButton radioBtnForward;
+    @FXML private RadioButton radioBtnBack;
+    @FXML private CheckBox checkBoxCompare;
+    @FXML private CheckBox checkBoxTransferTime;
+    @FXML private CheckBox checkBoxChangeSign;
+    @FXML private CheckBox checkBoxConsumption;
+    @FXML private TextField textFieldXml;
+    @FXML private Button btnOpenXml;
+    @FXML private Button btnOpenExcel;
+    @FXML private Button btnMake50080;
+    @FXML private Button btnMake51070;
+    @FXML private Button btnSortFiles;
+    @FXML private Button btnDelFiles;
+    @FXML private Button btnCalc;
+    @FXML private DatePicker datePicker;
+    @FXML private Spinner<Integer> spinnerYear;
+    @FXML private Spinner<Integer> spinnerHour;
+
+
+    // инициализация контролов и загрузка ресурсов в Tab-ах
+    private void initTab51070() {
+        textFieldOre.setText(settingsWinControl.textFieldORE.getText());
+        comboBoxMonth.getItems().addAll("январь", "февраль", "март", "апрель", "май", "июнь", "июль",
+                "август", "сентябрь", "октябрь", "ноябрь", "декабрь");
+        Calendar curDate = Calendar.getInstance();
+        int monthIndex = curDate.get(Calendar.MONTH);
+        int year = curDate.get(Calendar.YEAR);
+        if (monthIndex == 0) {
+            monthIndex = 11;
+            year--;
+        }
+        else {
+            monthIndex--;
+        }
+
+        spinnerYear.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1000,9999,
+                year, 1));
+        spinnerHour.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1,23,
+                2, 1));
+
+        // ставим на datePicker год, месяц и 1-е число
+        LocalDate localDate = LocalDate.of(year, monthIndex + 1, 1);
+        datePicker.setValue(localDate);
+
+        comboBoxMonth.getSelectionModel().select(monthIndex);
+        comboBoxGMT.getItems().addAll("+", "-");
+        comboBoxGMT.getSelectionModel().selectFirst();
+
+        // объединяем в одну группу радиокнопки
+        ToggleGroup toggleGroup = new ToggleGroup();
+        radioBtnForward.setToggleGroup(toggleGroup);
+        radioBtnBack.setToggleGroup(toggleGroup);
+
+        // загружаем пиктограммы на кнопки
+        Image imageXml = new Image("Resources/xml51070.png");
+        btnMake51070.graphicProperty().setValue(new ImageView(imageXml));
+
+        imageXml = new Image("Resources/xml50080.png");
+        btnMake50080.graphicProperty().setValue(new ImageView(imageXml));
+
+        // загружаем коды ОРЭ контрагентов из файла ORE.txt
         try {
-            // загружаем пиктограммы на кнопки
-            Image imageXml = new Image("Resources/xls.png");
-            btnMakeXLS.graphicProperty().setValue(new ImageView(imageXml));
-
-            Image imageXls = new Image("Resources/xml.png");
-            btnMake80020.graphicProperty().setValue(new ImageView(imageXls));
-
-            Image imageReload = new Image("Resources/reload.png");
-            btnReload.graphicProperty().setValue(new ImageView(imageReload));
-
-            // при инициализации гл. окна программы создаем окно с настройками
-            FXMLLoader fxmlLoader = new FXMLLoader();
-            Parent settingsWin = fxmlLoader.load(getClass().getResource("/Resources/FXML/SettingsWindow.fxml").
-                    openStream());
-            // инициализируем переменную-контроллер, через нее будем получать доступ к элементам окна настроек
-            settingsWinControl = fxmlLoader.getController();
-
-            Scene settingsScene = new Scene(settingsWin);
-            settingsStage = new Stage();
-            settingsStage.setTitle("Настройки");
-            settingsStage.setScene(settingsScene);
-            settingsStage.setResizable(false);
-            settingsStage.initModality(Modality.APPLICATION_MODAL);
-
-            fxmlLoader = new FXMLLoader();
-            Parent dataWin = fxmlLoader.load(getClass().getResource("/Resources/FXML/DataWindow.fxml").openStream());
-            // инициализируем переменную-контроллер, через нее будем получать доступ к элементам окна настроек
-            dataWinControl = fxmlLoader.getController();
-
-            Scene dataScene = new Scene(dataWin);
-            dataStage = new Stage();
-            dataStage.setTitle("Данные");
-            dataStage.setScene(dataScene);
-            dataStage.setResizable(false);
-            dataStage.initModality(Modality.APPLICATION_MODAL);
-            dataStage.initStyle(StageStyle.UTILITY);
-
-            // при инициализации гл. окна программы создаем окно "О программе"
-            aboutWindow.setTitle("О программе");
-            aboutWindow.setHeaderText("АСКУЭ 1.0");
-            aboutWindow.setContentText("Для использования только в ПАО \"АЭСК\"" + System.lineSeparator() +
-                    "Разработчик Ищенко С.А. " + System.lineSeparator() + "e-mail: astraboomer@hotmail.com");
-
-            // создаем окно с прогресс-баром
-            //progressBarCreate();
+            List<String> subjectOre = Files.readAllLines(Paths.get("ORE.txt"), StandardCharsets.UTF_8);
+            comboBoxSubjectOre.getItems().addAll(subjectOre);
         }
         catch (IOException e) {
-            // выводим сообщение об шибке в случае неудачи
-            messageWindow.showModalWindow("Ошибка", e.getMessage() + ". Программа будет закрыта.",
+            messageWindow.showModalWindow("Ошибка", "Не удалось загрузить коды ОРЭ контрагентов." +
+                            " Проверьте доступность файла ORE.txt",
                     Alert.AlertType.ERROR);
-            Platform.exit();
-            System.exit(0);
         }
+
+        // обработчики событий контролов
+
+        checkBoxCompare.selectedProperty().addListener(event -> {
+            if (checkBoxCompare.isSelected()) {
+                textFieldXml.setDisable(false);
+                btnOpenXml.setDisable(false);
+            }
+            else {
+                textFieldXml.setDisable(true);
+                btnOpenXml.setDisable(true);
+            }
+        });
+
+        comboBoxSubjectOre.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null)
+                btnMake50080.setDisable(false);
+            else
+                btnMake50080.setDisable(true);
+        });
+
+        checkBoxTransferTime.selectedProperty().addListener(event -> {
+            if (checkBoxTransferTime.isSelected()) {
+                radioBtnForward.setDisable(false);
+                radioBtnBack.setDisable(false);
+                datePicker.setDisable(false);
+                spinnerHour.setDisable(false);
+            }
+            else {
+                radioBtnForward.setDisable(true);
+                radioBtnBack.setDisable(true);
+                datePicker.setDisable(true);
+                spinnerHour.setDisable(true);
+            }
+        });
+
+        btnOpenExcel.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Выберите файл Excel");
+            FileChooser.ExtensionFilter extFilter =
+                    new FileChooser.ExtensionFilter("Excel файлы", "*.xlsx", "*.xls");
+            fileChooser.getExtensionFilters().add(extFilter);
+            fileChooser.setInitialDirectory(lastOpenDir);
+            File excelFile = fileChooser.showOpenDialog(new Stage());
+            if (excelFile != null) {
+                lastOpenDir = excelFile.getParentFile();
+                textFieldExcel.setText(excelFile.getAbsolutePath());
+                btnMake51070.setDisable(false);
+            }
+        });
+
+        btnOpenXml.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Выберите файл XML для сравнения");
+            FileChooser.ExtensionFilter extFilter =
+                    new FileChooser.ExtensionFilter("XML файлы", "*.xml");
+            fileChooser.getExtensionFilters().add(extFilter);
+            fileChooser.setInitialDirectory(lastOpenDir);
+            File xmlFile = fileChooser.showOpenDialog(new Stage());
+            if (xmlFile != null) {
+                lastOpenDir = xmlFile.getParentFile();
+                lastOpenDir = xmlFile.getParentFile();
+                textFieldXml.setText(xmlFile.getAbsolutePath());
+            }
+        });
+
+        btnMake51070.setOnAction(event -> make51070());
+        btnMake50080.setOnAction(event -> make50080());
+
+    }
+    private void initTabAdditional() {
+        // загружаем пиктограммы на кнопки
+        Image imageXml = new Image("Resources/sort.png");
+        btnSortFiles.graphicProperty().setValue(new ImageView(imageXml));
+
+        imageXml = new Image("Resources/delete.png");
+        btnDelFiles.graphicProperty().setValue(new ImageView(imageXml));
+
+        imageXml = new Image("Resources/calc.png");
+        btnCalc.graphicProperty().setValue(new ImageView(imageXml));
+    }
+
+    // метод создает файл XML в формате 50080
+    private void make50080() {
+        // если поля 220 и 330 не заполнены, сразу завершаем метод
+        if (textField220.getText().equals("") || textField330.getText().equals("")) {
+            messageWindow.showModalWindow("Внимание", "Значения полей 330 кВ и 220 кВ не " +
+                    "должны быть пустыми", Alert.AlertType.WARNING);
+            return;
+        }
+        try {
+            // создаем новый DOM-документ XML с соответ. узлами и атрибутами
+            Document xmlDoc = createXmlDoc();
+            Element root = xmlDoc.createElement("message");
+            xmlDoc.appendChild(root);
+
+            Date curDate = new Date();
+            DateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+            String createdTime = formatter.format(curDate);
+            String offset = "GMT" + getTimeZoneOffset(curDate);
+            String messageId = getUId();
+            String sender = settingsWinControl.textFieldINN.getText();
+            String kpokod = "";
+
+            root.setAttribute("class", "50080");
+            root.setAttribute("version", "1");
+            root.setAttribute("sender", sender);
+            root.setAttribute("created", createdTime + offset);
+            root.setAttribute("id", messageId);
+            root.setAttribute("kpokod", kpokod);
+
+            Element adjacent = xmlDoc.createElement("adjacent");
+            adjacent.setAttribute("code-from", textFieldOre.getText());
+            adjacent.setAttribute("code-to", comboBoxSubjectOre.getValue());
+
+            Element flow = xmlDoc.createElement("flow");
+            String mon = Integer.toString(comboBoxMonth.getSelectionModel().getSelectedIndex() + 1);
+            if (mon.length() < 2)
+                mon = "0" + mon;
+            String month = spinnerYear.getValue().toString() + mon;
+            flow.setAttribute("month", month);
+
+            Element power330 = xmlDoc.createElement("power330");
+            Element power220 = xmlDoc.createElement("power220");
+            power330.setTextContent(textField330.getText());
+            power220.setTextContent(textField220.getText());
+
+            flow.appendChild(power330);
+            flow.appendChild(power220);
+            adjacent.appendChild(flow);
+            root.appendChild(adjacent);
+
+            // под этим именем будем сохранять
+            String outFileName = "d50080" + sender + createdTime + ".xml";
+            FileChooser fileChooser = new FileChooser();
+            // задаем имя XML файла в диалоге сохранения
+            fileChooser.setInitialFileName(outFileName);
+            FileChooser.ExtensionFilter extFilter =
+                    new FileChooser.ExtensionFilter("XML файлы", "*.xml");
+            fileChooser.getExtensionFilters().add(extFilter);
+            File file = fileChooser.showSaveDialog(new Stage());
+            // если имя выбрано файл
+            if (file != null) {
+                XmlUtil.saveXMLDoc(xmlDoc, file.getAbsolutePath(), "windows-1251", true);
+            }
+
+        }
+        catch (Exception e) {
+            messageWindow.showModalWindow("Ошибка", e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+    // метод возвращает уник. 32-значный id в верхнем регистре
+    private String getUId () {
+        String uId = UUID.randomUUID().toString().replaceAll("-", "");
+        return uId.toUpperCase();
+    }
+
+    // метод возвращает сдвиг часового пояса GMT из настроек даты компа
+    private String getTimeZoneOffset(Date date) {
+        TimeZone timeZone = TimeZone.getDefault();
+        int tzOffset = timeZone.getOffset(date.getTime()) / 3600000;
+        String GMTSign = Integer.toString(tzOffset);
+        if (tzOffset > 0)
+            GMTSign = "+" + GMTSign;
+        return GMTSign;
+    }
+
+    // метод создает файл XML в формате 50080
+    private void make51070() {
+        // если галочка сравнения с др. файлом xml стоит, но этот файл не выбран, то выходим из метода
+        if (checkBoxCompare.isSelected() && textFieldXml.getText().equals("")) {
+            messageWindow.showModalWindow("Внимание", "Не выбран файл XML для сравнения",
+                    Alert.AlertType.WARNING);
+            return;
+        }
+        String excelFileName = textFieldExcel.getText();
+        Workbook workbook;
+        // пытаемся создать workbook из xls-файла (excel 2003)
+        try {
+            workbook = new HSSFWorkbook(new FileInputStream(excelFileName));
+        }
+        catch (IOException e) {
+            messageWindow.showModalWindow("Ошибка", "Не удается открыть " + excelFileName + "." +
+            "Проверьте доступность файла", Alert.AlertType.ERROR);
+            return;
+        }
+        // обрабатываем ошибку, если выбран xlsx-файл (excel 2007 и старше)
+        catch (org.apache.poi.poifs.filesystem.OfficeXmlFileException e1) {
+            try {
+                // создаем workbook из xlsx-файла
+                workbook = new XSSFWorkbook(excelFileName);
+            }
+            catch (IOException e2) {
+                messageWindow.showModalWindow("Ошибка", "Не удается открыть " + excelFileName + "." +
+                        "Проверьте доступность файла", Alert.AlertType.ERROR);
+                return;
+            }
+        }
+
+        try {
+            // создаем новый DOM-документ XML с соответ. узлами и атрибутами
+            Document xmlDoc = createXmlDoc();
+            Element root = xmlDoc.createElement("package");
+            xmlDoc.appendChild(root);
+
+            Date curDate = new Date();
+            DateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+            String createdTime = formatter.format(curDate);
+            String offset = "GMT" + getTimeZoneOffset(curDate);
+            String messageId = getUId();
+            String sender = settingsWinControl.textFieldINN.getText();
+
+            root.setAttribute("class", "51070");
+            root.setAttribute("version", "1");
+            root.setAttribute("sender", sender);
+            root.setAttribute("created", createdTime + offset);
+            root.setAttribute("id", messageId);
+
+            // дочерний узел корневого узла package. В завис. от того, стоит галочка "Потребление" или нет,
+            // это будет узел group или adjacent со своими атрибутами
+            Element packageChild;
+            if (! checkBoxConsumption.isSelected()) {
+                packageChild = xmlDoc.createElement("adjacent");
+                packageChild.setAttribute("code-from", textFieldOre.getText());
+                packageChild.setAttribute("code-to", comboBoxSubjectOre.getValue());
+            }
+            else {
+                packageChild = xmlDoc.createElement("group");
+                packageChild.setAttribute("code", textFieldOre.getText());
+            }
+            int k = 1;
+
+            // если нужно менять знак значений, то делаем коэф-т k=-1
+            if (checkBoxChangeSign.isSelected())
+                k = -1;
+            int transferTime = 0;
+            int transferDay = 0;
+
+            // если был перевод времени (стоит галка), то получаем время перевода и число
+            if (checkBoxTransferTime.isSelected()) {
+                transferTime = spinnerHour.getValue();
+                transferDay = datePicker.getValue().getDayOfMonth();
+            }
+            int year = spinnerYear.getValue();
+            int month = comboBoxMonth.getSelectionModel().getSelectedIndex();
+            int day = 1;
+            int hour = 0;
+            int minute = 0;
+
+            // инициализируем календарь значениями выбранного года, месяца, 1 числом этого месяца и временем 00:00
+            Calendar calendar = new GregorianCalendar(year, month, day, hour, minute);
+            formatter = new SimpleDateFormat("yyyyMMddHHmm");
+            Sheet sheet = workbook.getSheetAt(0);
+            int cellNum = sheet.getRow(0).getLastCellNum();
+            int rowNum = 23; // количество строк в файле excel должно быть 24 (25 в случае перевода на час назад)
+            // проходим по всем строкам каждого столбца (i - столбец, j - строка)
+            for (int i = 0; i < cellNum; i++) {
+                for (int j = 0; j <= rowNum; j++) {
+                    Row row =  sheet.getRow(j);
+                    int power = (int) row.getCell(i).getNumericCellValue();
+                    // если перевод на час вперед, переводим календарь на час вперед и досрочно завершаем j-й шаг
+                    // в i сутках будет 23 часа
+                    if (checkBoxTransferTime.isSelected() && i == transferDay - 1 && j == transferTime) {
+                        if (radioBtnForward.isSelected()) {
+                            calendar.add(Calendar.HOUR, 1);
+                            continue;
+                        }
+                    }
+                    // в обычном режиме без перевода создаем узлы flow с атрибутами
+                    Element flowNode = xmlDoc.createElement("flow");
+                    String begin = formatter.format(calendar.getTime()) + "GMT" + comboBoxGMT.getValue() +
+                            textFieldTimeZone.getText();
+                    calendar.add(Calendar.HOUR, 1);
+                    String end = formatter.format(calendar.getTime()) + "GMT" + comboBoxGMT.getValue() +
+                            textFieldTimeZone.getText();
+                    flowNode.setAttribute("power", Integer.toString(power * k));
+                    flowNode.setAttribute("begin", begin);
+                    flowNode.setAttribute("end", end);
+                    packageChild.appendChild(flowNode);
+
+                    // если перевод на час назад, то создаем с текущими данными календаря еще 1 узел flow,
+                    // только значение power берем из 25 строки текущего стобца i
+                    if (checkBoxTransferTime.isSelected() && i == transferDay - 1 && j == transferTime) {
+                        if (radioBtnBack.isSelected()) {
+                            flowNode = xmlDoc.createElement("flow");
+                            Row additionalRow = sheet.getRow(24);
+                            if (additionalRow != null)
+                                power = (int) sheet.getRow(24).getCell(i).getNumericCellValue();
+                            else
+                                power = 0;
+                            flowNode.setAttribute("power", Integer.toString(power * k));
+                            flowNode.setAttribute("begin", begin);
+                            flowNode.setAttribute("end", end);
+                            packageChild.appendChild(flowNode);
+                        }
+                    }
+                }
+            }
+            // закрываем книгу
+            workbook.close();
+            // добавляем в корень узел package со всеми данными
+            root.appendChild(packageChild);
+            NodeList flowNodes = root.getElementsByTagName("flow");
+            // если нужно сравнить с др. файлом xml, получаем список узлов flow 1-го (созданного) файла xml и
+            // список узлов flow 2-го файла xml. Данные сравниваем попарно
+            if (checkBoxCompare.isSelected()) {
+                File file = new File (textFieldXml.getText());
+                URL otherXmlFile = file.toURI().toURL();
+                Document otherXmlDoc = XmlUtil.getXmlDoc(otherXmlFile);
+                Element root2 = otherXmlDoc.getDocumentElement();
+                NodeList flowNodes2 = root2.getElementsByTagName("flow");
+                // сюда заносим врем. интервалы и различающиеся значения power
+                List<String> unCorrectData = new ArrayList<>();
+                for (int i = 0; i < flowNodes.getLength(); i++) {
+                    String begin1 = flowNodes.item(i).getAttributes().getNamedItem("begin").getNodeValue();
+                    String end1 = flowNodes.item(i).getAttributes().getNamedItem("end").getNodeValue();
+                    String power = flowNodes.item(i).getAttributes().getNamedItem("power").getNodeValue();
+                    String power2 = flowNodes2.item(i).getAttributes().getNamedItem("power").getNodeValue();
+                    if (!power.equals(power2)) {
+                        unCorrectData.add("Интервал: " + begin1 + " - " + end1 + ". Значения: " + power + " и " + power2);
+                    }
+                }
+                // есть есть различия, выводим их в окне
+                if (unCorrectData.size() > 0) {
+                    StringBuilder text = new StringBuilder();
+                    for (String line : unCorrectData) {
+                        text.append(line).append(System.lineSeparator());
+                    }
+                    textWindow.showModalWindow("Внимание", "Данные в файлах не совпадают!", text.toString(),
+                            Alert.AlertType.WARNING);
+                } else {
+                    messageWindow.showModalWindow("Внимание", "Данные в файлах совпадают!",
+                            Alert.AlertType.INFORMATION);
+                }
+            }
+            // под этим именем будем сохранять файл
+            String outFileName = "d51070" + sender + createdTime + ".xml";
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setInitialFileName(outFileName);
+
+            FileChooser.ExtensionFilter extFilter =
+                    new FileChooser.ExtensionFilter("XML файлы", "*.xml");
+            fileChooser.getExtensionFilters().add(extFilter);
+            File file = fileChooser.showSaveDialog(new Stage());
+            if (file != null) {
+                XmlUtil.saveXMLDoc(xmlDoc, outFileName, "windows-1251", true);
+            }
+        }
+        catch (Exception e) {
+            messageWindow.showModalWindow("Ошибка", e.getMessage(), Alert.AlertType.ERROR);
+        }
+    }
+
+
+    // инициализация контролов и загрузка ресурсов в Tab-ах
+    private void initTab80020() {
+        // загружаем пиктограммы на кнопки
+        Image imageXml = new Image("Resources/xls.png");
+        btnMakeXLS.graphicProperty().setValue(new ImageView(imageXml));
+
+        Image imageXls = new Image("Resources/xml.png");
+        btnMake80020.graphicProperty().setValue(new ImageView(imageXls));
+
+        Image imageReload = new Image("Resources/reload.png");
+        btnReload.graphicProperty().setValue(new ImageView(imageReload));
 
         // помещаем радио кнопки в одну группу выбора
         ToggleGroup toggleGroup = new ToggleGroup();
@@ -175,10 +569,10 @@ public class MainWindowController {
                         measuringChannel.setFont(Font.font("System", FontPosture.ITALIC, -1));
                         labelMeasPointCode.setTextFill(Color.RED);
                         if (valuesList != null)
-                        for (int j = 0; j < valuesList.getLength(); j++) {
-                            Element value = (Element) valuesList.item(j);
-                            value.setAttribute("status", "1");
-                        }
+                            for (int j = 0; j < valuesList.getLength(); j++) {
+                                Element value = (Element) valuesList.item(j);
+                                value.setAttribute("status", "1");
+                            }
                     });
                     // в пункт контекс. меню каждого measuringChannel-а добавляем показа данных,
                     measuringChannel.getShowDataItem().setOnAction(event -> {
@@ -276,6 +670,66 @@ public class MainWindowController {
             else
                 btnDelAIIS.setDisable(true);
         });
+    }
+
+    // при инициализации гл. окна программы создаем окно с настройками
+    private void initSettingsWindow() throws IOException {
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        Parent settingsWin = fxmlLoader.load(getClass().getResource("/Resources/FXML/SettingsWindow.fxml").
+                openStream());
+        // инициализируем переменную-контроллер, через нее будем получать доступ к элементам окна настроек
+        settingsWinControl = fxmlLoader.getController();
+
+        Scene settingsScene = new Scene(settingsWin);
+        settingsStage = new Stage();
+        settingsStage.setTitle("Настройки");
+        settingsStage.setScene(settingsScene);
+        settingsStage.setResizable(false);
+        settingsStage.initModality(Modality.APPLICATION_MODAL);
+    }
+
+    // при инициализации гл. окна программы создаем окно c данными по каналам ТИ
+    private void initDataWindow() throws IOException {
+        FXMLLoader fxmlLoader = new FXMLLoader();
+        Parent dataWin = fxmlLoader.load(getClass().getResource("/Resources/FXML/DataWindow.fxml").openStream());
+        // инициализируем переменную-контроллер, через нее будем получать доступ к элементам окна настроек
+        dataWinControl = fxmlLoader.getController();
+
+        Scene dataScene = new Scene(dataWin);
+        dataStage = new Stage();
+        dataStage.setTitle("Данные");
+        dataStage.setScene(dataScene);
+        dataStage.setResizable(false);
+        dataStage.initModality(Modality.APPLICATION_MODAL);
+        dataStage.initStyle(StageStyle.UTILITY);
+    }
+
+    // при инициализации гл. окна программы создаем окно "О программе"
+    private void initAboutWindow() {
+        aboutWindow.setTitle("О программе");
+        aboutWindow.setHeaderText("АСКУЭ 1.0");
+        aboutWindow.setContentText("Для использования только в ПАО \"АЭСК\"" + System.lineSeparator() +
+                "Разработчик Ищенко С.А. " + System.lineSeparator() + "e-mail: astraboomer@hotmail.com");
+    }
+
+    @FXML
+    private void initialize() {
+        try {
+            initSettingsWindow();
+            initDataWindow();
+            initAboutWindow();
+            initTab80020();
+            initTab51070();
+            initTabAdditional();
+
+        }
+        catch (IOException e) {
+            // выводим сообщение об шибке в случае неудачи
+            messageWindow.showModalWindow("Ошибка", e.getMessage() + ". Программа будет закрыта.",
+                    Alert.AlertType.ERROR);
+            Platform.exit();
+            System.exit(0);
+        }
     }
 
     // метод возвращает список узлов value переданного measuringPoint-а и узла measuringChannel в нем
@@ -402,7 +856,7 @@ public class MainWindowController {
     @FXML
     private void selectXMLFiles(ActionEvent actionEvent) {
         FileChooser fileChooser = new FileChooser();
-        //fileChooser.setInitialDirectory(new File("D:\\Работа\\Макеты\\80020\\Калмыки")); /// удалить потом!
+        fileChooser.setInitialDirectory(lastOpenDir); /// удалить потом!
         fileChooser.setTitle("Выберите файлы XML");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Файлы XML", "*.xml"));
         // вводим лок.  переменную localFileList, которая инициализируется при каждом нажатии на кнопку
@@ -418,6 +872,7 @@ public class MainWindowController {
         if (localFileList != null) {
             localFileList = XmlClass.validateXMLFiles(localFileList); // оставляем в списке только коррект. xml-файлы
             if (localFileList.size() > 0) { // если размер списка корректных файлов больше 0
+                lastOpenDir = localFileList.get(0).getParentFile();
                 this.fileList = localFileList;
                 this.fileList.sort(new Comparator<File>() { // далее сортируем файлы по именам
                     @Override
@@ -536,6 +991,13 @@ public class MainWindowController {
                 xmlDataToXls(workbook, i);  // передаем workbook и индекс файла в списке файлов, индекс
                 // нужен  для формирования номеров строк в excel
             }
+            // после пакетной обработки всех файлов делаем "текущим" первый в списке
+            if (fileList.get(0).getName().contains("80020") || fileList.get(0).getName().contains("80040")) {
+                currentXml = new XML80020(fileList.get(0));
+            } else {
+                currentXml = new XML80025(fileList.get(0));
+            }
+            currentXml.loadDataFromXML();
         }
 
         sumArrayToSheet(workbook, sumArray);
@@ -553,9 +1015,14 @@ public class MainWindowController {
                 new FileChooser.ExtensionFilter("Excel файлы", "*.xlsx");
         fileChooser.getExtensionFilters().add(extFilter);
         fileChooser.setInitialDirectory(new File(currentXml.getFile().getParent()));
+
         File file = fileChooser.showSaveDialog(new Stage());
         if (file != null) {
             try {
+                if (!file.getName().endsWith(".xlsx")) {
+                    String newFileName = file.getAbsolutePath() + ".xlsx";
+                    file = new File(newFileName);
+                }
                 FileOutputStream fos = new FileOutputStream(file);
                 workbook.write(fos);
                 workbook.close();
@@ -698,10 +1165,23 @@ public class MainWindowController {
            row.createCell(0).setCellValue(Integer.parseInt(day));
            // если нужно выводить врем. интервал
            if (checkBoxShowIntervals.isSelected()) {
-                period = "[" + periods[i].getStart().substring(0, 2) + "." + periods[i].getStart().substring(2, 4) +
-                        " - " + periods[i].getEnd().substring(0, 2) + "." + periods[i].getEnd().substring(2, 4) + "]";
-                row.createCell(1).setCellValue((Integer.toString(i + 1)) + " " + period);
-            }
+               if (row.getCell(1) == null) {
+                   String startPeriod = "[" + periods[i].getStart().substring(0, 2) + "." +
+                           periods[i].getStart().substring(2, 4);
+                   String endPeriod;
+
+                   if (z == 2) {
+                       endPeriod = periods[i + 1].getEnd().substring(0, 2) + "." +
+                               periods[i + 1].getEnd().substring(2, 4) + "]";
+                   }
+                   else
+                       endPeriod = periods[i].getEnd().substring(0, 2) + "." +
+                               periods[i].getEnd().substring(2, 4) + "]";
+
+                   period = startPeriod + " - " + endPeriod;
+                   row.createCell(1).setCellValue((Integer.toString((i / z) + 1)) + " " + period);
+               }
+           }
             // иначе
             else {
                 row.createCell(1).setCellValue((i / z) + 1);

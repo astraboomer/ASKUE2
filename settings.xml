@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="windows-1251" standalone="yes"?>
+<unit DayLightSavingTime="0" INN="3017041554" ODU="7" aiis_code="3000000700" autosave="0" name="Астраханская энергосбытовая компания" number="54" ore_code="PASTRHEN" savepath="C:\Games" version="2">
+  <subject INN="7736520080" amount="2" code="3000001400" name="Мосгорэнерго (МЕТРО)"/>
+  <subject INN="6164266561" amount="10" code="3000000702" name="Калмэнергосбыт">
+    <measuringpoint code="302070001107201"/>
+    <measuringpoint code="302070001107904"/>
+    <measuringpoint code="302070007107101"/>
+    <measuringpoint code="302070009214101"/>
+    <measuringpoint code="302070009214202"/>
+  </subject>
+  <subject INN="7715887873" amount="2" code="3000002801" name="Энергосистема (Алимпик)"/>
+  <subject INN="7729663922" amount="13" code="3000001700" name="РТ-Энерго (АСПО)"/>
+  <subject INN="3016059510" amount="7" code="3000002502" name="Лукойл-Астраханьэнерго (ПГУ-235)">
+    <measuringpoint code="301200001113001"/>
+    <measuringpoint code="301200001113002"/>
+    <measuringpoint code="301200001113003"/>
+  </subject>
+  <subject INN="7705750968" amount="11" code="3000000714" name="Межрегионэнергосбыт (ГДА)"/>
+  <subject INN="7706284124" amount="2" code="3000000706" name="Русэнергосбыт (РЖД)"/>
+  <subject INN="3445071523" amount="2" code="3400000100" name="Волгоградэнергосбыт"/>
+  <subject INN="7703552167" amount="6" code="3000002902" name="Транснефтьэнерго (КТК-Р)">
+    <measuringpoint code="302070029107101"/>
+    <measuringpoint code="302070029107102"/>
+    <measuringpoint code="302130023113101"/>
+    <measuringpoint code="302130023113201"/>
+  </subject>
+  <subject INN="7715887873" amount="15" code="3000003000" name="Энергосистема (Астраханское стекловолокно)"/>
+  <subject INN="7715887873" amount="4" code="3000002601" name="Энергосистема (Дорадо)"/>
+  <subject INN="3016059510" amount="39" code="3000000904" name="Лукойл-Астраханьэнерго (ГРЭС)">
+    <measuringpoint code="301150002113001"/>
+    <measuringpoint code="301150002113002"/>
+    <measuringpoint code="301120001114005"/>
+    <measuringpoint code="301120001114006"/>
+    <measuringpoint code="301120001114007"/>
+    <measuringpoint code="303070002107101"/>
+    <measuringpoint code="303070002107402"/>
+    <measuringpoint code="303070002107303"/>
+    <measuringpoint code="303070002107404"/>
+    <measuringpoint code="303070002107905"/>
+    <measuringpoint code="303070002107206"/>
+    <measuringpoint code="303070002107107"/>
+    <measuringpoint code="303070002107108"/>
+    <measuringpoint code="303070002107902"/>
+    <measuringpoint code="303070002107309"/>
+    <measuringpoint code="303070002107410"/>
+    <measuringpoint code="303070002107102"/>
+    <measuringpoint code="303070002107301"/>
+    <measuringpoint code="301150002113003"/>
+    <measuringpoint code="301150002113004"/>
+  </subject>
+  <subject INN="3016059510" amount="39" code="3000000700" name="Лукойл-Астраханьэнерго (ТЭЦ-2)">
+    <measuringpoint code="301150002113001"/>
+    <measuringpoint code="301150002113002"/>
+    <measuringpoint code="303070001208101"/>
+    <measuringpoint code="303070001208202"/>
+    <measuringpoint code="303070001208103"/>
+    <measuringpoint code="303070001208204"/>
+    <measuringpoint code="303070001208105"/>
+    <measuringpoint code="303070001208206"/>
+    <measuringpoint code="303070001208107"/>
+    <measuringpoint code="303070001208208"/>
+    <measuringpoint code="301120001314105"/>
+    <measuringpoint code="301120001314206"/>
+    <measuringpoint code="301120001314107"/>
+    <measuringpoint code="301120001314108"/>
+    <measuringpoint code="301120001314109"/>
+    <measuringpoint code="301120001314110"/>
+    <measuringpoint code="301120001314211"/>
+    <measuringpoint code="303070001107101"/>
+    <measuringpoint code="303070001107202"/>
+    <measuringpoint code="303070001107103"/>
+    <measuringpoint code="303070001107904"/>
+    <measuringpoint code="301120001114005"/>
+    <measuringpoint code="301120001114006"/>
+    <measuringpoint code="301120001114007"/>
+    <measuringpoint code="303070002107301"/>
+    <measuringpoint code="301150002113003"/>
+    <measuringpoint code="301150002113004"/>
+  </subject>
+</unit>

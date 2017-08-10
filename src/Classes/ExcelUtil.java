@@ -7,10 +7,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ExcelUtil {
 
-    public static void setCellColorAndFontColor(XSSFCell cell, IndexedColors fgColor, IndexedColors FontColor ){
-        XSSFWorkbook wb = cell.getRow().getSheet().getWorkbook();
+    public static void setCellColorAndFontColor(Cell cell, IndexedColors fgColor, IndexedColors FontColor ){
+        Workbook wb = cell.getRow().getSheet().getWorkbook();
         CellStyle style = wb.createCellStyle();
-        XSSFFont font = wb.createFont();
+        Font font = wb.createFont();
         font.setColor(FontColor.getIndex());
         style.setFont(font);
         style.setFillForegroundColor(fgColor.getIndex());
@@ -20,9 +20,9 @@ public class ExcelUtil {
 
     public static void setCellFont (XSSFCell cell, IndexedColors fontColor, boolean isBold, boolean isItalic,
                                     boolean isUnderline, boolean needBorder) {
-        XSSFWorkbook wb = cell.getRow().getSheet().getWorkbook();
+        Workbook wb = cell.getRow().getSheet().getWorkbook();
         CellStyle style = wb.createCellStyle();
-        XSSFFont font = wb.createFont();
+        Font font = wb.createFont();
         font.setColor(fontColor.getIndex());
         font.setBold(isBold);
         font.setItalic(isItalic);

@@ -62,7 +62,6 @@ public class SettingsWindowController {
         radioButtonSummer.setToggleGroup(toggleGroup);
 
         File settings = new File(fileName);
-        //InputStream fis = new FileInputStream((getClass().getResourceAsStream(fileName)));
         try {
             settingsXmlDoc = XmlUtil.getXmlDoc(settings.toURI().toURL());
             XmlUtil.removeWhitespaceNodes(settingsXmlDoc.getDocumentElement());

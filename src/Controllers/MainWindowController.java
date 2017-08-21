@@ -8,6 +8,7 @@ import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -91,7 +92,11 @@ public class MainWindowController {
     private final static int[] colorNums = new int[]{11, 12, 20, 14, 62, 23, 25, 44, 28, 29, 45, 46, 52, 60, 49, 40};
     // массив списков ячеек Excel из строки с кодами ТИ в шапке, на которые срабатывает обходной выключатель
     private List<XSSFCell>[] extCodes;
+    // используется для запоминания последней выбранной директории
     private File lastOpenDir;
+    // получаем пользов. директорую + Application Data/ASKUE (в ней будут храниться настройки программы)
+    static final String appDataDir = System.getProperty("user.home") + slash + "Application Data" +
+            slash + "ASKUE";
 
     @FXML
     private TextField textFieldOre;
@@ -155,6 +160,21 @@ public class MainWindowController {
     private Spinner<Integer> spinnerYear;
     @FXML
     private Spinner<Integer> spinnerHour;
+    @FXML
+    private ProgressBar progressBar;
+
+    // метод берет из папки ресурсов /Resources jar-а файл resource и сохраняет в файл fileName
+    static void resourceToFile (String resource, String fileName) throws IOException {
+        InputStream is = Main.class.getResourceAsStream(resource);
+        byte[] buffer = new byte[1000];
+        int count;
+        FileOutputStream fos = new FileOutputStream(fileName);
+        while ((count = is.read(buffer)) > 0) {
+            fos.write(buffer, 0, count);
+        }
+        fos.close();
+        is.close();
+    }
 
     // инициализация контролов и загрузка ресурсов в Tab-ах
     private void initTab51070() {
@@ -199,9 +219,11 @@ public class MainWindowController {
 
         // загружаем коды ОРЭ контрагентов из файла ORE.txt
         try {
-            List<String> subjectOre = Files.readAllLines(Paths.get("ORE.txt"), StandardCharsets.UTF_8);
+            String fileName = appDataDir + slash + "ORE.txt";
+            File oreFile = new File(fileName);
+            List<String> subjectOre = Files.readAllLines(oreFile.toPath(), StandardCharsets.UTF_8);
             comboBoxSubjectOre.getItems().addAll(subjectOre);
-        } catch (IOException e) {
+        } catch (Exception e) {
             messageWindow.showModalWindow("Ошибка", "Не удалось загрузить коды ОРЭ контрагентов." +
                             " Проверьте доступность файла ORE.txt",
                     Alert.AlertType.ERROR);
@@ -433,6 +455,27 @@ public class MainWindowController {
                 zis.closeEntry();
             }
             zis.close();
+    }
+
+    protected static void unZipJarFile (File file, String fileName) throws Exception {
+        FileInputStream fis = new FileInputStream(file);
+        FileOutputStream fos;
+        ZipInputStream zis = new ZipInputStream(fis);
+        ZipEntry zipEntry;
+        while ((zipEntry = zis.getNextEntry()) != null) {
+            String fileNameInZip = zipEntry.getName();
+            if (fileNameInZip.equals(fileName)) {
+                byte[] buffer = new byte[1000];
+                int count;
+                fos = new FileOutputStream(fileNameInZip);
+                while ((count = zis.read(buffer)) > 0) {
+                    fos.write(buffer, 0, count);
+                }
+                fos.close();
+            }
+            zis.closeEntry();
+        }
+        zis.close();
     }
 
     private static void sortFiles(String dirName) {
@@ -723,6 +766,13 @@ public class MainWindowController {
             formatter = new SimpleDateFormat("yyyyMMddHHmm");
             Sheet sheet = workbook.getSheetAt(0);
             int cellNum = sheet.getRow(0).getLastCellNum();
+
+            String dl = "";
+            if (checkBoxTransferTime.isSelected() && radioBtnBack.isSelected())
+                dl = "DL";
+            if (checkBoxTransferTime.isSelected() && radioBtnForward.isSelected())
+                dl = "";
+
             int rowNum = 23; // количество строк в файле excel должно быть 24 (25 в случае перевода на час назад)
             // проходим по всем строкам каждого столбца (i - столбец, j - строка)
             for (int i = 0; i < cellNum; i++) {
@@ -731,17 +781,13 @@ public class MainWindowController {
                     int power = (int) row.getCell(i).getNumericCellValue();
                     // если перевод на час вперед, переводим календарь на час вперед и досрочно завершаем j-й шаг
                     // в i сутках будет 23 часа
+
                     if (checkBoxTransferTime.isSelected() && i == transferDay - 1 && j == transferTime) {
                         if (radioBtnForward.isSelected()) {
                             calendar.add(Calendar.HOUR, 1);
+                            dl = "DL"; // все последующие значения интервалов будут оканчиваться на DL
                             continue;
                         }
-                    }
-                    // В день перевода часов до времени перевода begin и end должны заканчиватся на DL
-                    String dl = "";
-                    if (checkBoxTransferTime.isSelected() && i == transferDay - 1 && radioBtnBack.isSelected()) {
-                        if (j < transferTime)
-                            dl = "DL";
                     }
 
                     // в обычном режиме без перевода создаем узлы flow с атрибутами
@@ -760,6 +806,7 @@ public class MainWindowController {
                     // только значение power берем из 25 строки текущего стобца i
                     if (checkBoxTransferTime.isSelected() && i == transferDay - 1 && j == transferTime - 1) {
                         if (radioBtnBack.isSelected()) {
+                            dl = ""; // этот и все последующие узлы будут оканчиваться без DL
                             flowNode = xmlDoc.createElement("flow");
                             Row additionalRow = sheet.getRow(24);
                             if (additionalRow != null)
@@ -831,6 +878,7 @@ public class MainWindowController {
 
     // инициализация контролов и загрузка ресурсов в Tab-ах
     private void initTab80020() {
+
         // загружаем пиктограммы на кнопки
         Image imageXml = new Image("Resources/xls.png");
         btnMakeXLS.graphicProperty().setValue(new ImageView(imageXml));
@@ -1282,61 +1330,89 @@ public class MainWindowController {
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             createSheetHeader(workbook.getSheetAt(i), mpNames, mpCodes);
         }
-        xmlDataToXls(workbook, 0);
-        if (checkBoxBatch.isSelected()) { // если пакетная обработка, то перебираем все файлы
-            for (int i = 1; i < fileList.size(); i++) {
-                XML80020 prevXml = currentXml;
-                if (fileList.get(i).getName().contains("80020") || fileList.get(i).getName().contains("80040")) {
-                    currentXml = new XML80020(fileList.get(i));
-                } else {
-                    currentXml = new XML80025(fileList.get(i));
+        btnMake80020.setDisable(true);
+        Task task = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception { // запускается при старте thread-а
+
+                if (!checkBoxBatch.isSelected()) {  // если НЕ пакетная обработка, то выгружаем один выбранный файл
+                                                    // (он может быть и первым в списке файлов)
+                    xmlDataToXls(workbook, 0);
+                    updateProgress(1, 1); // задаем значение прогрессбара, как 1 из 1
                 }
-                currentXml.loadDataFromXML();
-                copySelectedProperty(prevXml, currentXml);
-                xmlDataToXls(workbook, i);  // передаем workbook и индекс файла в списке файлов, индекс
-                // нужен  для формирования номеров строк в excel
-            }
-            // после пакетной обработки всех файлов делаем "текущим" первый в списке
-            if (fileList.get(0).getName().contains("80020") || fileList.get(0).getName().contains("80040")) {
-                currentXml = new XML80020(fileList.get(0));
-            } else {
-                currentXml = new XML80025(fileList.get(0));
-            }
-            currentXml.loadDataFromXML();
-        }
+                else { // если пакетная обработка, то перебираем все файлы
+                    XML80020 prevXml = null;
+                    for (int i = 0; i < fileList.size(); i++) {
+                        prevXml = currentXml;
+                        if (fileList.get(i).getName().contains("80020") || fileList.get(i).getName().contains("80040")) {
+                            currentXml = new XML80020(fileList.get(i));
+                        } else {
+                            currentXml = new XML80025(fileList.get(i));
+                        }
+                        currentXml.loadDataFromXML();
+                        copySelectedProperty(prevXml, currentXml);
+                        xmlDataToXls(workbook, i);  // передаем workbook и индекс файла в списке файлов, индекс
+                                                    // нужен  для формирования номеров строк в excel
+                        updateProgress(i + 1, fileList.size()); // обновляем значение прогрессбара
+                    }
 
-        sumArrayToSheet(workbook, sumArray);
-        mpCodesToSheet(workbook);
-        workbook.setActiveSheet(0);
-
-        Long endTime = new Date().getTime();
-        DateFormat formatter = new SimpleDateFormat("mm:ss");
-        String execTime = formatter.format(endTime - startTime);
-        messageWindow.showModalWindow("Завершено", "Время выполнения: " + execTime + ". Сохраните файл!",
-                Alert.AlertType.INFORMATION);
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить как");
-        FileChooser.ExtensionFilter extFilter =
-                new FileChooser.ExtensionFilter("Excel файлы", "*.xlsx");
-        fileChooser.getExtensionFilters().add(extFilter);
-        fileChooser.setInitialDirectory(new File(currentXml.getFile().getParent()));
-
-        File file = fileChooser.showSaveDialog(new Stage());
-        if (file != null) {
-            try {
-                if (!file.getName().endsWith(".xlsx")) {
-                    String newFileName = file.getAbsolutePath() + ".xlsx";
-                    file = new File(newFileName);
+                    // после пакетной обработки всех файлов делаем "текущим" первый в списке
+                    if (fileList.get(0).getName().contains("80020") || fileList.get(0).getName().contains("80040")) {
+                        currentXml = new XML80020(fileList.get(0));
+                    } else {
+                        currentXml = new XML80025(fileList.get(0));
+                    }
+                    currentXml.loadDataFromXML();
+                    copySelectedProperty(prevXml, currentXml);
                 }
-                FileOutputStream fos = new FileOutputStream(file);
-                workbook.write(fos);
-                workbook.close();
-                fos.close();
-            } catch (IOException e) {
-                messageWindow.showModalWindow("Ошибка", "Не удается сохранить файл " + file.getName() +
-                        ". Возможно он открыт в другой программе.", Alert.AlertType.ERROR);
+
+                // выводим суммы значений по столбцам и коды ТИ на которые произошло срабатывание обх. переключателя
+                sumArrayToSheet(workbook, sumArray);
+                mpCodesToSheet(workbook);
+                // делаем акт. первый лист книги
+                workbook.setActiveSheet(0);
+                // метод call ничего не будет возвращать
+                return null;
             }
-        }
+            @Override protected void succeeded() { // срабатывает при успешном завершении task-а
+                super.succeeded();
+                Long endTime = new Date().getTime();
+                DateFormat formatter = new SimpleDateFormat("mm:ss");
+                String execTime = formatter.format(endTime - startTime);
+                messageWindow.showModalWindow("Завершено", "Время выполнения: " + execTime + ". Сохраните файл!",
+                        Alert.AlertType.INFORMATION);
+                FileChooser fileChooser = new FileChooser();
+                fileChooser.setTitle("Сохранить как");
+                FileChooser.ExtensionFilter extFilter =
+                        new FileChooser.ExtensionFilter("Excel файлы", "*.xlsx");
+                fileChooser.getExtensionFilters().add(extFilter);
+                fileChooser.setInitialDirectory(new File(currentXml.getFile().getParent()));
+
+                File file = fileChooser.showSaveDialog(new Stage());
+                if (!(currentXml instanceof XML80025)) btnMake80020.setDisable(false);
+                if (file != null) {
+                    try {
+                        if (!(file.getName().endsWith(".xlsx"))) {
+                            String newFileName = file.getAbsolutePath() + ".xlsx";
+                            file = new File(newFileName);
+                        }
+                        FileOutputStream fos = new FileOutputStream(file);
+                        workbook.write(fos);
+                        workbook.close();
+                        fos.close();
+                    } catch (IOException e) {
+                        messageWindow.showModalWindow("Ошибка", "Не удается сохранить файл " + file.getName() +
+                                ". Возможно он открыт в другой программе.", Alert.AlertType.ERROR);
+                    }
+                }
+            }
+        };
+
+        // связываем свойство прогресса прогрессбара со свойством прогресса task-а
+        progressBar.progressProperty().bind(task.progressProperty());
+        // запускаем выгрузку в excel (task) в отдельном thread-е
+        Thread thread = new Thread(task);
+        thread.start();
     }
 
     private void mpCodesToSheet(XSSFWorkbook workbook) {
@@ -1599,7 +1675,6 @@ public class MainWindowController {
         String senderName = settingsWinControl.textFieldName.getText();
         String senderINN = settingsWinControl.textFieldINN.getText();
         String areaName;
-        String messNumber = "";
         if (comboBoxAreaName.getItems() != null)
             areaName = comboBoxAreaName.getSelectionModel().getSelectedItem();
         else
@@ -1618,7 +1693,6 @@ public class MainWindowController {
         else
             autoSaveDir = null; // если автосохранение не стоит, то передаем значение null
 
-        String outFileName;
         String outDirName;
 
         if (autoSaveDir != null) { // если обрабатываем только выделенный файл
@@ -1631,77 +1705,104 @@ public class MainWindowController {
                 new File(outDirName).mkdir();
         }
 
-        if (!checkBoxBatch.isSelected()) { // если не пакетная обработка
-            int num = Integer.parseInt(settingsWinControl.textFieldNumber.getText());
-            if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
-                num = 0;
-            messNumber = Integer.toString(num + 1); // увеличиваем на 1 номер message-а
-            settingsWinControl.textFieldNumber.setText(messNumber);
-            // под этим именем сохраняем файл
-            String fileName = currentXml.getMessage().getMessageClass() + "_" +
-                    senderINN + "_" +
-                    currentXml.getDateTime().getDay() + "_" +
-                    messNumber + "_" +
-                    senderAIIS + ".xml";
 
-            outFileName = outDirName + slash + fileName;
-            try {
-                currentXml.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber,
-                        newDLSavingTime, outFileName);
-            } catch (TransformerException e) {
-                messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
-                        " завершена неудачно!", Alert.AlertType.ERROR);
-                return;
-            }
-        } else // если пакетная обработка
-        {
+        Task<Void> task = new Task<Void>() {
+            String messNumber;
             int num = Integer.parseInt(settingsWinControl.textFieldNumber.getText());
-            // запоминаем данные первого xml-файла в списке
-            XML80020 xmlFirst = currentXml;
-            for (File file : fileList) {
-                if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
-                    num = 0;
-                num++; // увеличиваем на 1 номер message-а
-                messNumber = Integer.toString(num);
-                XML80020 xmlTemp = currentXml;
-                currentXml = new XML80020(file);
-                currentXml.loadDataFromXML();
-                for (int i = 0; i < currentXml.getAreaList().size(); i++) {
-                    Area area = currentXml.getAreaList().get(i);
-                    for (int j = 0; j < area.getMeasPointList().size(); j++) {
-                        MeasuringPoint measPoint = area.getMeasPointList().get(j);
-                        measPoint.setSelected(xmlTemp.getAreaList().get(i).getMeasPointList().get(j).isSelected());
-                        for (int k = 0; k < measPoint.getMeasChannelList().size(); k++) {
-                            MeasuringChannel measChannel = measPoint.getMeasChannelList().get(k);
-                            measChannel.setSelected(xmlTemp.getAreaList().get(i).getMeasPointList().get(j).
-                                    getMeasChannelList().get(k).isSelected());
-                        }
+            String outFileName;
+            @Override
+            protected Void call() throws Exception {
+
+                if (!checkBoxBatch.isSelected()) { // если не пакетная обработка
+                    if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
+                        num = 0;
+                    messNumber = Integer.toString(num + 1); // увеличиваем на 1 номер message-а
+                    settingsWinControl.textFieldNumber.setText(messNumber);
+                    // под этим именем сохраняем файл
+                    String fileName = currentXml.getMessage().getMessageClass() + "_" +
+                            senderINN + "_" +
+                            currentXml.getDateTime().getDay() + "_" +
+                            messNumber + "_" +
+                            senderAIIS + ".xml";
+
+                    outFileName = outDirName + slash + fileName;
+                    try {
+                        currentXml.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber,
+                                newDLSavingTime, outFileName);
+                        // обновляем значение индикатора
+                        updateProgress(1, 1);
+                    } catch (TransformerException e) {
+                        messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
+                                " завершена неудачно!", Alert.AlertType.ERROR);
+                        //return;
                     }
-                }
-                // под этим именем сохраняем файл
-                String fileName = currentXml.getMessage().getMessageClass() + "_" +
-                        senderINN + "_" +
-                        currentXml.getDateTime().getDay() + "_" +
-                        messNumber + "_" +
-                        senderAIIS + ".xml";
 
-                outFileName = outDirName + slash + fileName;
-                try {
-                    currentXml.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber,
-                            newDLSavingTime, outFileName);
-                } catch (TransformerException e) {
-                    messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
-                            " завершена неудачно!", Alert.AlertType.ERROR);
-                    return;
+                } else // если пакетная обработка
+                {
+                    // запоминаем данные первого xml-файла в списке
+                    XML80020 xmlFirst = currentXml;
+                    int n = 0;
+                    for (File file : fileList) {
+                        n++;
+                        if (num == Integer.MAX_VALUE) // если достигнуто макс. знач. Integer, то начинаем с 0
+                            num = 0;
+                        num++; // увеличиваем на 1 номер message-а
+                        messNumber = Integer.toString(num);
+                        XML80020 xmlTemp = currentXml;
+                        currentXml = new XML80020(file);
+                        currentXml.loadDataFromXML();
+                        for (int i = 0; i < currentXml.getAreaList().size(); i++) {
+                            Area area = currentXml.getAreaList().get(i);
+                            for (int j = 0; j < area.getMeasPointList().size(); j++) {
+                                MeasuringPoint measPoint = area.getMeasPointList().get(j);
+                                measPoint.setSelected(xmlTemp.getAreaList().get(i).getMeasPointList().get(j).isSelected());
+                                for (int k = 0; k < measPoint.getMeasChannelList().size(); k++) {
+                                    MeasuringChannel measChannel = measPoint.getMeasChannelList().get(k);
+                                    measChannel.setSelected(xmlTemp.getAreaList().get(i).getMeasPointList().get(j).
+                                            getMeasChannelList().get(k).isSelected());
+                                }
+                            }
+                        }
+                        // под этим именем сохраняем файл
+                        String fileName = currentXml.getMessage().getMessageClass() + "_" +
+                                senderINN + "_" +
+                                currentXml.getDateTime().getDay() + "_" +
+                                messNumber + "_" +
+                                senderAIIS + ".xml";
+
+                        outFileName = outDirName + slash + fileName;
+                        try {
+                            currentXml.saveDataToXML(senderName, senderINN, areaName, areaINN, messVersion, messNumber,
+                                    newDLSavingTime, outFileName);
+                        } catch (TransformerException e) {
+                            messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + outFileName +
+                                    " завершена неудачно!", Alert.AlertType.ERROR);
+                            //return;
+                        }
+                        // обновляем значение индикатора
+                        updateProgress(n, fileList.size());
+                    }
+                    // текущему xml-файлу возращаем данные первого файла в списке (он является "выделенным" в списке)
+                    currentXml = xmlFirst;
                 }
+                return null;
             }
-            // текущему xml-файлу возращаем данные первого файла в списке (он является "выделенным" в списке)
-            currentXml = xmlFirst;
-        }
-        messageWindow.showModalWindow("Выполнено", "Данные сохранены в папке " + outDirName,
-                Alert.AlertType.INFORMATION);
-        settingsWinControl.textFieldNumber.setText(messNumber);
-        settingsWinControl.saveNumber(messNumber); // сразу сохраняем новый номер в файл настроек
+
+            @Override
+            protected void succeeded() {
+                super.succeeded();
+                messageWindow.showModalWindow("Выполнено", "Данные сохранены в папке " + outDirName,
+                        Alert.AlertType.INFORMATION);
+                settingsWinControl.textFieldNumber.setText(messNumber);
+                settingsWinControl.saveNumber(messNumber); // сразу сохраняем новый номер в файл настроек
+            }
+        };
+
+        // связываем свойство прогресса прогрессбара со свойством прогресса task-а
+        progressBar.progressProperty().bind(task.progressProperty());
+        // запускаем формирование макетов 80020/80040 (task) в отдельном thread-е
+        Thread thread = new Thread(task);
+        thread.start();
     }
 
     // показ окна с настройками (вызывается при нажатии на пункт меню НАСТРОЙКИ)
@@ -1828,8 +1929,13 @@ public class MainWindowController {
         if (checkBoxBatch.isSelected()) {
             filesListView.getSelectionModel().selectFirst();
             filesListView.setDisable(true);
+            progressBar.setVisible(true);
+            // устанавливаем значение прогрессбара в 0
+            progressBar.progressProperty().unbind();
+            progressBar.setProgress(0);
         } else {
             filesListView.setDisable(false);
+            progressBar.setVisible(false);
         }
     }
 

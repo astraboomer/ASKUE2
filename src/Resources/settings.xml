@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="windows-1251" standalone="yes"?>
-<unit DayLightSavingTime="0" INN="3017041554" ODU="7" aiis_code="3000000700" autosave="0" name="Астраханская энергосбытовая компания" number="54" ore_code="PASTRHEN" savepath="C:\Games" version="2">
+<unit DayLightSavingTime="0" INN="3017041554" ODU="7" aiis_code="3000000700" autosave="0" name="Астраханская энергосбытовая компания" number="1" ore_code="PASTRHEN" savepath="C:\Games" version="2">
   <subject INN="7736520080" amount="2" code="3000001400" name="Мосгорэнерго (МЕТРО)"/>
   <subject INN="6164266561" amount="10" code="3000000702" name="Калмэнергосбыт">
     <measuringpoint code="302070001107201"/>
@@ -77,4 +77,5 @@
     <measuringpoint code="301150002113003"/>
     <measuringpoint code="301150002113004"/>
   </subject>
+  <subject INN="7704731218" amount="1" code="3000000710" name="Оборонэнергосбыт (Гр. малых точек)"/>
 </unit>

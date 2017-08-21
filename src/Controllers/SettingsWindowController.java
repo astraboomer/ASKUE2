@@ -1,5 +1,6 @@
 package Controllers;
 
+import Classes.Main;
 import Classes.XmlUtil;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -11,13 +12,12 @@ import javafx.stage.Stage;
 import org.w3c.dom.Document;
 
 import javax.xml.transform.TransformerException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Files;
 
 import static Classes.Main.slash;
 import static Classes.XmlClass.messageWindow;
+import static Controllers.MainWindowController.*;
 
 /**
  * Created by Сергей on 29.05.2017.
@@ -61,8 +61,40 @@ public class SettingsWindowController {
         radioButtonWinter.setToggleGroup(toggleGroup);
         radioButtonSummer.setToggleGroup(toggleGroup);
 
-        File settings = new File(fileName);
         try {
+            File dir = new File(appDataDir);
+            // проверяем наличие польз. папки appDataDir
+            // если ее нет, то пытаемся создать ее и извлечь в нее из ресурсов файлы settings.xml и ORE.txt
+            if (!Files.exists(dir.toPath())) {
+                messageWindow.showModalWindow("Внимание", "Не удалось найти настройки программы. " +
+                "Возможно это первый запуск. Будут созданы настройки по умолчанию.", Alert.AlertType.WARNING);
+                if (!dir.mkdir()) {
+                    messageWindow.showModalWindow("Ошибка", "Не удалость создать папку "+
+                            appDataDir + ". Программа будет закрыта!", Alert.AlertType.ERROR);
+                    //завершаем работу программы
+                    Platform.exit();
+                    System.exit(0);
+                }
+                resourceToFile("/Resources/settings.xml", appDataDir + slash + fileName);
+                resourceToFile("/Resources/ORE.txt", appDataDir + slash + "ORE.txt");
+            }
+            File settings = new File(appDataDir + slash +fileName);
+            File ore = new File(appDataDir + slash + "ORE.txt");
+
+            // проверяем наличие файлов settings.xml и ORE.txt в папке ASKUE
+            // к этому моменту проверка существования папки ASKUE пройдена
+            if (!Files.exists(settings.toPath())) {
+                resourceToFile("/Resources/settings.xml", appDataDir + slash + fileName);
+                messageWindow.showModalWindow("Внимание", "Не удалось найти файл с настройками программы." +
+                                " Были созданы настройки по умолчанию!",
+                        Alert.AlertType.WARNING);
+            }
+            if (!Files.exists(ore.toPath())) {
+                resourceToFile("/Resources/ORE.txt", appDataDir + slash + "ORE.txt");
+                messageWindow.showModalWindow("Внимание", "Не удалось найти файл с кодами контрагентов ОРЭ." +
+                                " Были созданы настройки по умолчанию!", Alert.AlertType.WARNING);
+            }
+
             settingsXmlDoc = XmlUtil.getXmlDoc(settings.toURI().toURL());
             XmlUtil.removeWhitespaceNodes(settingsXmlDoc.getDocumentElement());
 
@@ -120,7 +152,7 @@ public class SettingsWindowController {
         }
         catch (FileNotFoundException e1) {
             messageWindow.showModalWindow("Ошибка", "Невозможно загрузить настройки. Программа будет закрыта. "+
-                    "Проверьте наличие файла " + settings.getName(), Alert.AlertType.ERROR);
+                    "Проверьте наличие файла settings.xml", Alert.AlertType.ERROR);
             //завершаем работу программы
             Platform.exit();
             System.exit(0);
@@ -160,7 +192,8 @@ public class SettingsWindowController {
                 setNodeValue(newNumber);
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
-            XmlUtil.saveXMLDoc(settingsXmlDoc, fileName,"windows-1251", true);
+            XmlUtil.saveXMLDoc(settingsXmlDoc, appDataDir + slash + fileName,"windows-1251",
+                    true);
         }
         catch (TransformerException e) {
             messageWindow.showModalWindow("Ошибка", "Трансформация в файл " + fileName +
@@ -206,7 +239,8 @@ public class SettingsWindowController {
 
         try {
             // форматируем и сохраняем документ в xml-файл с кодировкой windows-1251
-            XmlUtil.saveXMLDoc(settingsXmlDoc, fileName,"windows-1251", true);
+            XmlUtil.saveXMLDoc(settingsXmlDoc, appDataDir + slash + fileName,"windows-1251",
+                    true);
             closeWindow(actionEvent);
         }
         catch (TransformerException e) {

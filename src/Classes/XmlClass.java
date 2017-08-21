@@ -85,40 +85,50 @@ public abstract class XmlClass {
                     throw new FileNameException();
 
                 String fileNameClass = fileName.substring(0, 5);
+                if (!(fileNameClass.contains("80020") || fileNameClass.contains("80040") ||
+                        fileNameClass.contains("80025")))
+                    throw new FileNameException();
 
                 measPointCount = xmlDoc.getDocumentElement().getElementsByTagName("measuringpoint").getLength();
                 if (measPointCount == 0) {
                     throw new NoMeasPointException();
                 }
-                if (!(fileNameClass.contains("80020") || fileNameClass.contains("80040") ||
-                        fileNameClass.contains("80025")))
-                    throw new FileNameException();
+
+                if (xmlDoc.getDocumentElement().getElementsByTagName("area").item(0) == null &&
+                        xmlDoc.getDocumentElement().getElementsByTagName("aiis").item(0) == null) {
+                    throw new NoAreaException();
+                }
+
             }
 
             catch (FileNameException e1) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Имя импортируемого файла " +
-                        "должно начинаться с 80020, 80040 или 80025");
+                        "не соответствует требуемым параметрам");
             }
             catch (NoMeasPointException e2 ) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Отсутствуют точки измерения");
             }
-            catch (SAXParseException e3) {
+            catch (NoAreaException e3 ) {
+                validFileList.remove(file);
+                failedFileList.put(file.getName(), "Отсутствует area или aiis");
+            }
+            catch (SAXParseException e4) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Ошибка разбора XML. Строка: " +
-                e3.getLineNumber() + ", символ: " + e3.getColumnNumber());
+                e4.getLineNumber() + ", символ: " + e4.getColumnNumber());
             }
 
-            catch (ParserConfigurationException e4 ) {
+            catch (ParserConfigurationException e5 ) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Серьезная ошибка конфигурации парсера");
             }
-            catch (SAXException e5) {
+            catch (SAXException e6) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Общая ошибка парсера");
             }
-            catch (IOException e6) {
+            catch (IOException e7) {
                 validFileList.remove(file);
                 failedFileList.put(file.getName(), "Ошибка ввода/вывода. Проверьте доступность файла XML");
             }

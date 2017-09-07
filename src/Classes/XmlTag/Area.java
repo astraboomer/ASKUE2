@@ -2,6 +2,7 @@ package Classes.XmlTag;
 
 import org.w3c.dom.Node;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -11,8 +12,8 @@ public class Area {
     private String inn;
     private String name;
     private String timeZone;
-    private List<MeasuringPoint> measPointList;
-    private List<Node> measPointNodeList;
+    private List<MeasuringPoint> measPointList = new ArrayList<>();
+    //private List<Node> measPointNodeList;
 
     public String getTimeZone() {
         return timeZone;
@@ -21,14 +22,14 @@ public class Area {
     public void setTimeZone(String timeZone) {
         this.timeZone = timeZone;
     }
-
+    /*
     public List<Node> getMeasPointNodeList() {
         return measPointNodeList;
     }
 
     public void setMeasPointNodeList(List<Node> measPointNodeList) {
         this.measPointNodeList = measPointNodeList;
-    }
+    }*/
 
     public String getInn() {
         return inn;
@@ -50,7 +51,10 @@ public class Area {
         return measPointList;
     }
 
-    public void setMeasPointList(List<MeasuringPoint> measPointList) {
+    /*public void setMeasPointList(List<MeasuringPoint> measPointList) {
         this.measPointList = measPointList;
+    } */
+    public void addMeasPoint(MeasuringPoint measPoint) {
+        measPointList.add(measPoint);
     }
 }

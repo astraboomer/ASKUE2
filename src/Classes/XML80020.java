@@ -1,61 +1,81 @@
 package Classes;
 
 import Classes.XmlTag.*;
-import Controllers.MainWindowController;
-import Controllers.SettingsWindowController;
 import javafx.scene.control.Alert;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import org.w3c.dom.*;
-import org.w3c.dom.bootstrap.DOMImplementationRegistry;
 
 import javax.xml.transform.*;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import static Classes.Main.slash;
+import static Classes.ServiceUtil.messageWindow;
 
 /**
  * Created by Сергей on 12.05.2017.
  */
 public class XML80020 extends XmlClass {
-    public static final String activeInput = "Активная энергия, прием";
-    public static final String activeOutput = "Активная энергия, отдача";
-    public static final String reactiveInput = "Реактивная энергия, прием";
-    public static final String reactiveOutput = "Реактивная энергия, отдача";
+    private Message message;
+    private DateTime datetime;
+    private Sender sender;
+    private List<Area> areaList = new ArrayList<>();
 
-    public List<Area> areaList;
+    public XML80020(File file) {
+        super(file);
+        loadDataFromXML();
+    }
+
+    public Message getMessage() {
+        return message;
+    }
+
+    public DateTime getDateTime() {
+        return datetime;
+    }
+
+    public Sender getSender() {
+        return sender;
+    }
+
     public List<Area> getAreaList() {
         return areaList;
     }
-    public XML80020(File file) {
-        super(file);
+
+    void setMessage(Message message) {
+        this.message = message;
     }
+
+    void setDateTime(DateTime datetime) {
+        this.datetime = datetime;
+    }
+
+    void setSender(Sender sender) {
+        this.sender = sender;
+    }
+
+    public void addArea(Area area) {
+        this.areaList.add(area);
+    }
+
     /*
-    Получение поля message этого класса из xml-документа
+     Получение поля message этого класса из xml-документа
      */
-    private void setMessage (Document xmlDoc) {
+    public void readMessage() {
         Message message = new Message();
-        message.setMessageClass(xmlDoc.getDocumentElement().getAttributes().getNamedItem("class").getNodeValue());
-        message.setVersion(xmlDoc.getDocumentElement().getAttributes().getNamedItem("version").getNodeValue());
-        message.setNumber(xmlDoc.getDocumentElement().getAttributes().getNamedItem("number").getNodeValue());
-        this.setMessage(message); // переменной message этого класса передаем через метод значение локал. message-а
+        message.setMessageClass(getXmlDOMDoc().getDocumentElement().getAttributes().getNamedItem("class").getNodeValue());
+        message.setVersion(getXmlDOMDoc().getDocumentElement().getAttributes().getNamedItem("version").getNodeValue());
+        message.setNumber(getXmlDOMDoc().getDocumentElement().getAttributes().getNamedItem("number").getNodeValue());
+        this.message = message; // переменной message этого класса передаем через метод значение локал. message-а
     }
+
     /*
     Получение поля dateTime этого класса из xml-документа
      */
-    private void setDateTime (Document xmlDoc) {
+    public void readDateTime() {
         DateTime dateTime = new DateTime();
-        NodeList messageChildNodeList = xmlDoc.getDocumentElement().getChildNodes();
+        NodeList messageChildNodeList = getXmlDOMDoc().getDocumentElement().getChildNodes();
         int messageChildNodeCount = messageChildNodeList.getLength();
         for (int i = 0; i < messageChildNodeCount; i++) { // перебираем все дочер. узлы message-а
             if (messageChildNodeList.item(i).getNodeName().equals("datetime")) {
@@ -75,14 +95,15 @@ public class XML80020 extends XmlClass {
                 break; // выходим из цикла, если datetime найден
             }
         }
-        this.setDateTime(dateTime); // переменной dateTime этого класса передаем через метод значение локал. dateTime-а
+        this.datetime = dateTime; // переменной dateTime этого класса передаем через метод значение локал. dateTime-а
     }
+
     /*
     Получение поля sender этого класса из xml-документа
      */
-    private void setSender (Document xmlDoc) {
+    public void readSender() {
         Sender sender = new Sender();
-        NodeList messageChildNodeList = xmlDoc.getDocumentElement().getChildNodes();
+        NodeList messageChildNodeList = getXmlDOMDoc().getDocumentElement().getChildNodes();
         int messageChildNodeCount = messageChildNodeList.getLength();
         for (int i = 0; i < messageChildNodeCount; i++) { // перебираем все дочер. узлы message-а
             if (messageChildNodeList.item(i).getNodeName().equals("sender")) {
@@ -99,7 +120,7 @@ public class XML80020 extends XmlClass {
                 break; // выходим из цикла, если sender найден
             }
         }
-        this.setSender(sender); // переменной этого класса sender передаем через метод значение локал. sender-а
+        this.sender = sender; // переменной этого класса sender передаем через метод значение локал. sender-а
     }
 
     /*
@@ -107,7 +128,7 @@ public class XML80020 extends XmlClass {
     measuringpoint, а также определение содержится ли хотя бы одно некоммер. значение
     в канале. Если содержится, то помечаем это через метод setCommercialInfo(false)
      */
-    public List<MeasuringChannel> setMeasChannelList(Node measPointNode) {
+    public List<MeasuringChannel> readMeasChannelList(Node measPointNode) {
         List<MeasuringChannel> measChannelList = new ArrayList<>();
         NodeList measPointChildNodeList = measPointNode.getChildNodes();
         int measPointChildNodeCount = measPointChildNodeList.getLength();
@@ -116,21 +137,37 @@ public class XML80020 extends XmlClass {
                 MeasuringChannel measuringChannel = new MeasuringChannel();
                 measuringChannel.setCode(measPointChildNodeList.item(i).getAttributes().getNamedItem("code").
                         getNodeValue());
-                measuringChannel.setAliasName(getAliasNameChannelByCode(measuringChannel.getCode()));
-                /*measuringChannel.setDesc(measPointChildNodeList.item(i).getAttributes().getNamedItem("desc").
-                        getNodeValue());*/
+                measuringChannel.setAliasName(measuringChannel.getAliasNameChannelByCode(measuringChannel.getCode()));
+                Node descAttr = measPointChildNodeList.item(i).getAttributes().getNamedItem("desc");
+                if (descAttr != null)
+                    measuringChannel.setDesc(descAttr.getNodeValue());
                 NodeList measChannelChildNodeList = measPointChildNodeList.item(i).getChildNodes();
                 int measChannelChildNodeCount = measChannelChildNodeList.getLength();
                 for (int j = 0; j < measChannelChildNodeCount; j++) { // перебираем все дочер. узлы measuringchannel-а
                     if (measChannelChildNodeList.item(j).getNodeName().equals("period")) {
-                        Node statusAttr = measChannelChildNodeList.item(j).getChildNodes().
-                                item(0).getAttributes().getNamedItem("status");
+                        Period period = new Period();
+                        period.setStart(measChannelChildNodeList.item(j).getAttributes().getNamedItem("start").getNodeValue());
+                        period.setEnd(measChannelChildNodeList.item(j).getAttributes().getNamedItem("end").getNodeValue());
+                        period.setInterval();
+                        Node value = measChannelChildNodeList.item(j).getChildNodes().item(0);
+                        period.setValue(value.getTextContent());
+                        // проверяем наличие атрибута статус у узла value
+                        Node statusAttr = value.getAttributes().getNamedItem("status");
                         if (statusAttr != null) { // атрибут status действительно имеется
-                            if (statusAttr.getNodeValue().equals("1")) {
+                            period.setStatus(statusAttr.getNodeValue());
+                            if (period.getStatus().equals("1")) {
                                 measuringChannel.setCommercialInfo(false);
-                                break;
                             }
                         }
+                        Node extStatusAttr = value.getAttributes().getNamedItem("extendedstatus");
+                        if (extStatusAttr != null) { // атрибут extendedstatus действительно имеется
+                            period.setExtendedStatus(extStatusAttr.getNodeValue());
+                        }
+                        Node param1Attr = value.getAttributes().getNamedItem("param1");
+                        if (param1Attr != null) { // атрибут param1 действительно имеется
+                            period.setParam1(param1Attr.getNodeValue());
+                        }
+                        measuringChannel.addPeriod(period);
                     }
                 }
                 measChannelList.add(measuringChannel); // добавляем очередной measuringchannel в список
@@ -142,12 +179,12 @@ public class XML80020 extends XmlClass {
     /*
     Получение элемента measPointList-а из xml-документа по узлу measuringpoint
      */
-    public MeasuringPoint setMeasurePoint(Node measPointNode) {
+    public MeasuringPoint readMeasurePoint(Node measPointNode) {
         MeasuringPoint measuringPoint = new MeasuringPoint();
         measuringPoint.setCode(measPointNode.getAttributes().getNamedItem("code").getNodeValue());
         measuringPoint.setName(measPointNode.getAttributes().getNamedItem("name").getNodeValue());
         // для каждого переданного узла measuringpoint получаем список measuringchannel-ов
-        List<MeasuringChannel> measChannelList = setMeasChannelList(measPointNode);
+        List<MeasuringChannel> measChannelList = readMeasChannelList(measPointNode);
         // через метод класса передаем список measuringchannel-ов этому measuringpoint-у
         measuringPoint.setMeasChannelList(measChannelList);
         return measuringPoint;
@@ -156,59 +193,38 @@ public class XML80020 extends XmlClass {
     /*
     Получение списка элементов area из xml-документа
      */
-    private void setAreaList (Document xmlDoc) {
-        List<Area> areaList = new ArrayList<>();
+    public void readAreaList() {
         // получаем все узлы area из xml-документа
-        NodeList areaNodeList = xmlDoc.getDocumentElement().getElementsByTagName("area");
+        NodeList areaNodeList = getXmlDOMDoc().getDocumentElement().getElementsByTagName("area");
         int areaNodeCount = areaNodeList.getLength();
         for (int i = 0; i < areaNodeCount; i++) { // перебираем все узлы area
             Area area = new Area();
             Node timezone = areaNodeList.item(i).getAttributes().getNamedItem("timezone");
             if (timezone != null)
                 area.setTimeZone(timezone.getNodeValue());
-
-            NodeList areaChildNode = areaNodeList.item(i).getChildNodes();
-            int areaChildNodeCount = areaChildNode.getLength();
-            List<MeasuringPoint> measuringPointList = new ArrayList<>();
-            List<Node> measPointNodeList = new ArrayList<>();
+            // получаем список дочерних узлов i-й area
+            NodeList areaChildNodeList = areaNodeList.item(i).getChildNodes();
+            int areaChildNodeCount = areaChildNodeList.getLength();
             for (int j = 0; j < areaChildNodeCount; j++) { // перебираем все дочерние узлы узла area
-                if (areaChildNode.item(j).getNodeName().equals("inn")) {
-                    area.setInn(areaChildNode.item(j).getTextContent());
+                if (areaChildNodeList.item(j).getNodeName().equals("inn")) {
+                    area.setInn(areaChildNodeList.item(j).getTextContent());
+                    continue;
                 }
-                if (areaChildNode.item(j).getNodeName().equals("name")) {
-                    area.setName(areaChildNode.item(j).getTextContent());
+                if (areaChildNodeList.item(j).getNodeName().equals("name")) {
+                    area.setName(areaChildNodeList.item(j).getTextContent());
+                    continue;
                 }
-                if (areaChildNode.item(j).getNodeName().equals("measuringpoint")) {
+                if (areaChildNodeList.item(j).getNodeName().equals("measuringpoint")) {
                     // получаем элемент measPointList-а по узлу measuringpoint
-                    MeasuringPoint measuringPoint = setMeasurePoint(areaChildNode.item(j));
+                    MeasuringPoint measuringPoint = readMeasurePoint(areaChildNodeList.item(j));
                     // добавляем этот элемент в список measPointList объекта area
-                    measuringPointList.add(measuringPoint);
+                    area.addMeasPoint(measuringPoint);
                     // добавляем этот узел measuringpoint в список measPointNodeList объекта area
-                    measPointNodeList.add(areaChildNode.item(j));
                 }
             }
-            area.setMeasPointNodeList(measPointNodeList);
-            area.setMeasPointList(measuringPointList);
-            areaList.add(area);
+            // в спикок areaList добавляем area
+            this.addArea(area);
         }
-        this.areaList = areaList; // переменной этого класса areaList передаем через метод значение локал. areaList-а
-    }
-
-    // получаем название канала по его последней цифре кода
-    private String getAliasNameChannelByCode (String code) {
-        char ch = code.charAt(1);
-        String result = "Неизвестный канал";
-        switch (ch) {
-            case '1' : result = activeInput;
-                break;
-            case '2' : result = activeOutput;
-                break;
-            case '3' : result = reactiveInput;
-                break;
-            case '4' : result = reactiveOutput;
-                break;
-        }
-        return result;
     }
 
     // загружаем данные из текущего xml-файла
@@ -217,7 +233,8 @@ public class XML80020 extends XmlClass {
         // заполнение полей класса данными из xml-документа
         Document xmlDoc;
         try {
-            xmlDoc = XmlUtil.getXmlDoc(getFile().toURI().toURL());
+            loadXmlDOMDoc();
+            xmlDoc = getXmlDOMDoc();
         }
         catch (FileNotFoundException e1) {
             messageWindow.showModalWindow("Ошибка", "Не найден файл " + getFile().getAbsoluteFile(),
@@ -231,10 +248,10 @@ public class XML80020 extends XmlClass {
         // удаляем все пустые текстовые узлы дерева
         XmlUtil.removeWhitespaceNodes(xmlDoc.getDocumentElement());
         // заполняем поля данными
-        setMessage(xmlDoc);
-        setDateTime(xmlDoc);
-        setSender(xmlDoc);
-        setAreaList(xmlDoc);
+        readMessage();
+        readDateTime();
+        readSender();
+        readAreaList();
     }
 
     // сохраняем данные с новыми параметрами
@@ -250,13 +267,8 @@ public class XML80020 extends XmlClass {
             XmlUtil.removeWhitespaceNodes(xmlNewDoc.getDocumentElement());
         }
         // если не удалось получить xmlNewDoc, то выходим из метода
-        catch (FileNotFoundException e1) {
-            messageWindow.showModalWindow("Ошибка", "Данные не сохранены! Отсутствует файл шаблона: " +
-                    template.toString(), Alert.AlertType.ERROR);
-            return;
-        }
-        catch (Exception e2) {
-            messageWindow.showModalWindow("Ошибка", e2.getMessage(), Alert.AlertType.ERROR);
+        catch (Exception e1) {
+            messageWindow.showModalWindow("Ошибка", e1.getMessage(), Alert.AlertType.ERROR);
             return;
         }
 
@@ -264,12 +276,11 @@ public class XML80020 extends XmlClass {
         xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("class").setTextContent(getMessage().
                 getMessageClass());
         xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("version").setTextContent(messVersion);
-        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").
-                setNodeValue(messNumber);
+        xmlNewDoc.getDocumentElement().getAttributes().getNamedItem("number").setTextContent(messNumber);
 
         // заносим новые значения узлов
         xmlNewDoc.getDocumentElement().getElementsByTagName("timestamp").item(0).
-                setTextContent(XML80020.getCurrentDateTime());
+                setTextContent(ServiceUtil.getCurrentDateTime());
         xmlNewDoc.getDocumentElement().getElementsByTagName("daylightsavingtime").item(0).
                 setTextContent(newDLSavingTime);
         xmlNewDoc.getDocumentElement().getElementsByTagName("day").item(0).
@@ -300,22 +311,42 @@ public class XML80020 extends XmlClass {
                 // если measurepoint отмечен копируем текущий measpoint в areaNode xmlNewDoc-а через
                 // вспомогательный элемент, напрямую нельзя добавлять узел не из текущего xmlNewDoc-а
                 if (measPointList.get(i).isSelected()) {
-                    Element  copyNode = (Element) area.getMeasPointNodeList().get(i);
-                    Element imported = (Element) xmlNewDoc.importNode(copyNode, true);
-                    areaNode.appendChild(imported);
-
+                    Element measPointNode = xmlNewDoc.createElement("measuringpoint");
+                    measPointNode.setAttribute("code", measPointList.get(i).getCode());
+                    measPointNode.setAttribute("name", measPointList.get(i).getName());
                     List<MeasuringChannel> measChannelList = measPointList.get(i).getMeasChannelList();
-                    // проверяем в обратном порядке отмечены ли measchannel-ы и если да, то
-                    // удаляем их из только что добавленного узла imported
-                    for (int j = measChannelList.size() - 1; j >= 0; j--) {
-                        if (!measChannelList.get(j).isSelected()) {
-                            imported.removeChild(imported.getChildNodes().item(j));
+                    for (MeasuringChannel measuringChannel: measChannelList)
+                        if (measuringChannel.isSelected()) {
+                            Element measChannelNode = xmlNewDoc.createElement("measuringchannel");
+                            measChannelNode.setAttribute("code", measuringChannel.getCode());
+                            if (measuringChannel.getDesc() != null)
+                                measChannelNode.setAttribute("desc", measuringChannel.getDesc());
+                            List<Period> periodList = measuringChannel.getPeriodList();
+                            for (Period period: periodList) {
+                                Element periodNode = xmlNewDoc.createElement("period");
+                                periodNode.setAttribute("start", period.getStart());
+                                periodNode.setAttribute("end", period.getEnd());
+                                Element valueNode = xmlNewDoc.createElement("value");
+                                valueNode.setTextContent(period.getValue());
+                                if (period.getStatus() != null && period.getStatus().equals("1")) {
+                                    valueNode.setAttribute("status", period.getStatus());
+                                }
+                                if (period.getExtendedStatus() != null) {
+                                    valueNode.setAttribute("extendedstatus", period.getExtendedStatus());
+                                }
+                                if (period.getParam1() != null) {
+                                    valueNode.setAttribute("param1", period.getParam1());
+                                }
+                                periodNode.appendChild(valueNode);
+                                measChannelNode.appendChild(periodNode);
+                            }
+                            measPointNode.appendChild(measChannelNode);
                         }
-                    }
+                        areaNode.appendChild(measPointNode);
                 }
             }
         }
         XmlUtil.saveXMLDoc(xmlNewDoc, outFileName, "windows-1251", true);
+        //xmlNewDoc. .saveXMLDOMDoc(outFileName, true);
     }
-
 }

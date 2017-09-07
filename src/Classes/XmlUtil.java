@@ -19,7 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 
-public class XmlUtil {
+public final class XmlUtil {
     // создает новый DOM-документ
     public static Document createXmlDoc() throws IOException, ParserConfigurationException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -61,7 +61,7 @@ public class XmlUtil {
             transformer.transform(new DOMSource(xmlDoc), new StreamResult(file));
     }
 
-    // метод удаляет все тексовые (пустые) узлы пробелы из переданного узла DOM-дерева
+    // метод удаляет все тексовые (пустые) узлы и пробелы из переданного узла DOM-дерева
     // необходим для коррект. форматирования при сохранении документа
     public static void removeWhitespaceNodes(Element e) {
         NodeList children = e.getChildNodes();

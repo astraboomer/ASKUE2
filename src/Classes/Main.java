@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
@@ -17,7 +18,7 @@ public class Main extends Application {
         try {
             Parent mainWin = FXMLLoader.load(getClass().getResource("/Resources/FXML/MainWindow.fxml"));
 
-            primaryStage.setTitle("АСКУЭ");
+            primaryStage.setTitle("АСКУЭ 2");
             Scene mainScene = new Scene(mainWin);
             primaryStage.setScene(mainScene);
             Image imageIcon = new Image("Resources/icon.png");
@@ -35,9 +36,9 @@ public class Main extends Application {
             });
         }
         catch (Exception e) {
-            /*XmlClass.messageWindow.showModalWindow("Ошибка", e.getMessage() +
-                    " Программа будет закрыта.", Alert.AlertType.ERROR);*/
-            e.printStackTrace();
+            ServiceUtil.messageWindow.showModalWindow("Ошибка", e.getMessage() +
+                    " Программа будет закрыта.", Alert.AlertType.ERROR);
+            //e.printStackTrace();
             Platform.exit();
             System.exit(0);
         }

@@ -4,6 +4,7 @@ import Classes.*;
 import Classes.XmlTag.Area;
 import Classes.XmlTag.MeasuringChannel;
 import Classes.XmlTag.MeasuringPoint;
+import Classes.XmlTag.Period;
 import javafx.application.Platform;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -29,6 +30,11 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Hyperlink;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.streaming.SXSSFCell;
+import org.apache.poi.xssf.streaming.SXSSFRow;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.*;
 import org.w3c.dom.*;
 
@@ -47,8 +53,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static Classes.Main.slash;
-import static Classes.XML80020.*;
-import static Classes.XmlClass.messageWindow;
+import static Classes.ServiceUtil.textWindow;
+import static Classes.ServiceUtil.messageWindow;
+import static Classes.XmlTag.MeasuringChannel.*;
 import static Classes.XmlUtil.createXmlDoc;
 
 public class MainWindowController {
@@ -63,7 +70,7 @@ public class MainWindowController {
     public ListView measChannelListView;
     public Label labelMeasPointCode;
     public Button btnMake80020;
-    public Button btnMakeXLS;
+    public Button btnMakeExcel;
     public TextField textViewAIIS;
     public ComboBox<String> comboBoxAreaName;
     public RadioButton radioButton30Min;
@@ -88,10 +95,23 @@ public class MainWindowController {
     // инициализацмя переменной - окна "О программе"
     private Alert aboutWindow = new Alert(Alert.AlertType.INFORMATION);
 
-    // массив кодов цветов для раскрашивания ими шапки с кодами
-    private final static int[] colorNums = new int[]{11, 12, 20, 14, 62, 23, 25, 44, 28, 29, 45, 46, 52, 60, 49, 40};
+    // масиив цветов для закрашивания названий ТИ в соответ. ячейках с теми же цветами
+    private static final IndexedColors colors[] = {IndexedColors.LIGHT_GREEN, IndexedColors.LIGHT_YELLOW,
+                                            IndexedColors.LIGHT_TURQUOISE, IndexedColors.LIGHT_CORNFLOWER_BLUE};
+
     // массив списков ячеек Excel из строки с кодами ТИ в шапке, на которые срабатывает обходной выключатель
-    private List<XSSFCell>[] extCodes;
+    private List<SXSSFCell>[] extCodes;
+
+    // строка с кодами ТИ в шапке. Нужна для доступа к ее ячейкам из других ячеек книги. Т.к. в книге типа
+    // SXFFSWorkbook мы можем обращаться к строкам только в пределах заданного количества (при инициализации)
+    private static SXSSFRow headerCodesRow;
+
+    // стили ячеек
+    private static CellStyle redTextStyle;
+    private static CellStyle boldFontStyle;
+    private static CellStyle boldAndBorderStyle;
+    private static CellStyle boldAndFillStyle;
+
     // используется для запоминания последней выбранной директории
     private File lastOpenDir;
     // получаем пользов. директорую + Application Data/ASKUE (в ней будут храниться настройки программы)
@@ -386,7 +406,7 @@ public class MainWindowController {
                     str = new String(tempBuffer, "cp1251");
                     stringBuilder.append(str);
                 }
-                else {                                                // добавляем его в формируемую строку
+                else {                                   // добавляем его в формируемую строку
                     if (data == 13) {                    // если символ новай строки, то строка из stringBuilder
                         i++;                             // будет выводиться с новой строки в excel и первого столбца
                         j = 0;
@@ -457,27 +477,7 @@ public class MainWindowController {
             zis.close();
     }
 
-    protected static void unZipJarFile (File file, String fileName) throws Exception {
-        FileInputStream fis = new FileInputStream(file);
-        FileOutputStream fos;
-        ZipInputStream zis = new ZipInputStream(fis);
-        ZipEntry zipEntry;
-        while ((zipEntry = zis.getNextEntry()) != null) {
-            String fileNameInZip = zipEntry.getName();
-            if (fileNameInZip.equals(fileName)) {
-                byte[] buffer = new byte[1000];
-                int count;
-                fos = new FileOutputStream(fileNameInZip);
-                while ((count = zis.read(buffer)) > 0) {
-                    fos.write(buffer, 0, count);
-                }
-                fos.close();
-            }
-            zis.closeEntry();
-        }
-        zis.close();
-    }
-
+    // метод распаковывает все zip или gz файлы в директории dirName в эту же директорию и после этого удаляет архивы
     private static void sortFiles(String dirName) {
         File file = new File (dirName);
         File [] fileList = file.listFiles();
@@ -494,6 +494,8 @@ public class MainWindowController {
         }
     }
 
+    // рекурсивный метод удаляет все файлы в директории dirName, включая файлы в во всех влож. директориях,
+    // при этом оставляя сами директории нетронутыми
     private static void deleteFilesInDir(String dirName) {
         File file = new File (dirName);
         File [] fileList = file.listFiles();
@@ -507,6 +509,7 @@ public class MainWindowController {
         }
     }
 
+    // метод рассчитывает потери в книге excel workbook
     private void calcLosses(Workbook workbook) {
         Sheet newSheet = workbook.createSheet("Расчет потерь");
         workbook.setSheetOrder("Расчет потерь", 0);
@@ -875,13 +878,42 @@ public class MainWindowController {
         }
     }
 
+    private void intCellStyles(Workbook workbook) {
+        // создаем стиль для ячеек с некоммерч. инф.: жирный красный курсив
+        redTextStyle = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font redFont = workbook.createFont();
+        redFont.setColor(IndexedColors.RED.getIndex());
+        redFont.setBold(true);
+        redFont.setItalic(true);
+        redTextStyle.setFont(redFont);
+
+        // создаем стиль для ячеек в заголовках листов: черный жирный
+        boldFontStyle = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font boldBlackFont = workbook.createFont();
+        boldBlackFont.setBold(true);
+        boldFontStyle.setFont(boldBlackFont);
+
+        // создаем стиль ячейки: верт. и гориз. выравнивание по центру и тонкие границы и жирный шрифт
+        boldAndBorderStyle = workbook.createCellStyle();
+        boldAndBorderStyle.setBorderBottom(BorderStyle.THIN);
+        boldAndBorderStyle.setBorderLeft(BorderStyle.THIN);
+        boldAndBorderStyle.setBorderRight(BorderStyle.THIN);
+        boldAndBorderStyle.setBorderTop(BorderStyle.THIN);
+        boldAndBorderStyle.setAlignment(HorizontalAlignment.CENTER);
+        boldAndBorderStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        // создаем стиль для ячейки, на которую сработал обх. выключатель: жирный шрифт с заливкой
+        boldAndFillStyle = workbook.createCellStyle();
+        boldAndFillStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        boldAndFillStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        boldAndFillStyle.setFont(boldBlackFont);
+    }
 
     // инициализация контролов и загрузка ресурсов в Tab-ах
     private void initTab80020() {
-
         // загружаем пиктограммы на кнопки
         Image imageXml = new Image("Resources/xls.png");
-        btnMakeXLS.graphicProperty().setValue(new ImageView(imageXml));
+        btnMakeExcel.graphicProperty().setValue(new ImageView(imageXml));
 
         Image imageXls = new Image("Resources/xml.png");
         btnMake80020.graphicProperty().setValue(new ImageView(imageXls));
@@ -918,43 +950,25 @@ public class MainWindowController {
                     // в пункт контекс. меню каждого measuringChannel-а добавляем слушателя установки некомм. инф.,
                     // в котором меняется тип информации на некомм. и цвет кода текущ. measuringPoint-а
                     measuringChannel.getUnCommMenuItem().setOnAction(event -> {
-                        NodeList valuesList = getValuesOfChannelNode(measuringPoint, measuringChannel);
+                        List<Period> periodList = measuringChannel.getPeriodList();
                         measuringChannel.setCommercialInfo(false);
                         measuringChannel.setFont(Font.font("System", FontPosture.ITALIC, -1));
                         labelMeasPointCode.setTextFill(Color.RED);
-                        if (valuesList != null)
-                            for (int j = 0; j < valuesList.getLength(); j++) {
-                                Element value = (Element) valuesList.item(j);
-                                value.setAttribute("status", "1");
-                            }
+                        if (periodList != null)
+                            periodList.forEach(period -> period.setStatus("1"));
                     });
                     // в пункт контекс. меню каждого measuringChannel-а добавляем показа данных,
                     measuringChannel.getShowDataItem().setOnAction(event -> {
                         dataWinControl.labelMeasPoint.setText(measuringPoint.getName());
                         dataWinControl.labelMeasChannel.setText(measuringChannel.getAliasName());
                         // получаем список узлов value
-                        NodeList valuesList = getValuesOfChannelNode(measuringPoint, measuringChannel);
-                        ObservableList<MeasuringData> measDataList = FXCollections.observableArrayList();
-                        for (int i = 0; i < valuesList.getLength(); i++) {
-                            String start = valuesList.item(i).getParentNode().getAttributes().getNamedItem("start").
-                                    getNodeValue();
-                            String end = valuesList.item(i).getParentNode().getAttributes().getNamedItem("end").
-                                    getNodeValue();
-                            String value = valuesList.item(i).getTextContent();
-                            Node statusNode = valuesList.item(i).getAttributes().getNamedItem("status");
-                            String typeInfo;
-                            if (statusNode != null) {
-                                typeInfo = valuesList.item(i).getAttributes().getNamedItem("status").getNodeValue();
-                            } else {
-                                typeInfo = "0";
-                            }
-                            String timeInterval = start.substring(0, 2) + ":" + start.substring(2, 4) +
-                                    " - " + end.substring(0, 2) + ":" + end.substring(2, 4);
-                            MeasuringData measuringData = new MeasuringData(timeInterval, value, typeInfo);
-                            measDataList.add(measuringData);
-                        }
+                        List<Period> periodList = measuringChannel.getPeriodList();
+                        //ObservableList<MeasuringData> measDataList = FXCollections.observableArrayList();
+                        ObservableList<Period> measDataList = FXCollections.observableArrayList();
+                        measDataList.addAll(periodList);
                         dataWinControl.dataTableView.setItems(measDataList);
                         dataWinControl.dataTableView.scrollTo(0);
+                        dataWinControl.dataTableView.refresh();
                         dataStage.show();
                     });
 
@@ -996,7 +1010,6 @@ public class MainWindowController {
                     public MeasuringPoint fromString(String string) {
                         return null;
                     }
-
                 }));
         // добавляем слушателя к выбору значения имени субъекта
         comboBoxAreaName.valueProperty().addListener((observable, oldValue, newValue) -> {
@@ -1084,28 +1097,6 @@ public class MainWindowController {
         }
     }
 
-    // метод возвращает список узлов value переданного measuringPoint-а и узла measuringChannel в нем
-    private NodeList getValuesOfChannelNode(MeasuringPoint measuringPoint, MeasuringChannel measuringChannel) {
-        NodeList valuesList = null;
-        label:
-        for (Area area : currentXml.getAreaList()) {
-            for (Node measPointNode : area.getMeasPointNodeList()) {
-                if (measPointNode.getAttributes().getNamedItem("code").getNodeValue().
-                        equals(measuringPoint.getCode())) {
-                    for (int i = 0; i < measPointNode.getChildNodes().getLength(); i++) {
-                        if (measPointNode.getChildNodes().item(i).getAttributes().
-                                getNamedItem("code").getNodeValue().equals(measuringChannel.getCode())) {
-                            Element measChannelNode = (Element) measPointNode.getChildNodes().item(i);
-                            valuesList = measChannelNode.getElementsByTagName("value");
-                            break label;
-                        }
-                    }
-                }
-            }
-        }
-        return valuesList;
-    }
-
     // заполнение списка measuringpoint-ов
     private void fillMeasPointListView(XML80020 xmlClass) {
         ObservableList<MeasuringPoint> measPointObList = FXCollections.observableArrayList();
@@ -1139,12 +1130,11 @@ public class MainWindowController {
             btnSelectAll.setDisable(false);
             btnUnSelectAll.setDisable(false);
             btnMake80020.setDisable(false);
-            btnMakeXLS.setDisable(false);
+            btnMakeExcel.setDisable(false);
             comboBoxAreaName.setDisable(false);
             btnReload.setDisable(false);
             textViewAIIS.setDisable(false);
             btnSaveAIIS.setDisable(false);
-            //btnDelAIIS.setDisable(false);
             radioButton30Min.setDisable(false);
             radioButton60Min.setDisable(false);
             checkBoxShowIntervals.setDisable(false);
@@ -1185,7 +1175,6 @@ public class MainWindowController {
         this.subjects = new HashMap<>();
         Document xmlDoc = settingsWinControl.getSettingsXmlDoc();
         NodeList subjectNodeList = xmlDoc.getDocumentElement().getElementsByTagName("subject");
-        //String senderINN = xml80020.getSender().getInn();
         String senderINN = currentXml.getSender().getInn();
         String measuringPointsNum = Integer.toString(measPointListView.getItems().size());
         ObservableList<String> areaNameObList = FXCollections.observableArrayList();
@@ -1221,7 +1210,7 @@ public class MainWindowController {
         // список файлов fileList остается с предыдущего удачного выбора файлов,
         // иначе fileList получает значение localFileList с коррект. списком файлов
         if (localFileList != null) {
-            localFileList = XmlClass.validateXMLFiles(localFileList); // оставляем в списке только коррект. xml-файлы
+            localFileList = ServiceUtil.validateXMLFiles(localFileList); // оставляем в списке только коррект. xml-файлы
             if (localFileList.size() > 0) { // если размер списка корректных файлов больше 0
                 lastOpenDir = localFileList.get(0).getParentFile();
                 this.fileList = localFileList;
@@ -1261,16 +1250,12 @@ public class MainWindowController {
         // создаем объект нужного класса
 
         if (file.getName().startsWith("80020") || file.getName().startsWith("80040")) {
-            XML80020 xml80020 = new XML80020(file);
-            xml80020.loadDataFromXML();
-            currentXml = xml80020;
+            currentXml = new XML80020(file);
             fillMeasPointListView(currentXml);
             setControlsDisabled(false);
         }
-        if (file.getName().startsWith("80025")) {
-            XML80025 xml80025 = new XML80025(file);
-            xml80025.loadDataFromXML();
-            currentXml = xml80025;
+        else {
+            currentXml = new XML80025(file);
             fillMeasPointListView(currentXml);
             setControlsDisabled(true);
         }
@@ -1296,22 +1281,26 @@ public class MainWindowController {
 
     // создание файла excel (выгрузка данных)
     @FXML
-    private void makeXLS(ActionEvent actionEvent) throws InterruptedException {
+    private void makeExcel(ActionEvent actionEvent) throws InterruptedException {
         // запоминаем тек. время
         Long startTime = new Date().getTime();
         // списки названий и кодов для выбранных ТИ
         List<String> mpNames = new ArrayList<>();
         List<String> mpCodes = new ArrayList<>();
         // создаем новую книгу Excel
-        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFWorkbook wb = new XSSFWorkbook();
+        SXSSFWorkbook workbook = new SXSSFWorkbook(wb, 100);
+
         // создаем в книге 4 листа и задаем им цвет.
+        workbook.createSheet(ACTIVE_INPUT).setTabColor(new XSSFColor(colors[0]));
+        workbook.createSheet(ACTIVE_OUTPUT).setTabColor(new XSSFColor(colors[1]));
+        workbook.createSheet(REACTIVE_INPUT).setTabColor(new XSSFColor(colors[2]));
+        workbook.createSheet(REACTIVE_OUTPUT).setTabColor(new XSSFColor(colors[3]));
 
-        workbook.createSheet(activeInput).setTabColor(new XSSFColor(java.awt.Color.green));
-        workbook.createSheet(activeOutput).setTabColor(new XSSFColor(java.awt.Color.yellow));
-        workbook.createSheet(reactiveInput).setTabColor(new XSSFColor(java.awt.Color.cyan));
-        workbook.createSheet(reactiveOutput).setTabColor(new XSSFColor(java.awt.Color.orange));
+        // создаем различные стили для ячеек
+        intCellStyles(workbook);
 
-        // заносим в списки названия и коды отмеченных ТИ
+        // заносим в соотв. списки названия и коды отмеченных ТИ
         for (Object object : measPointListView.getItems()) {
             MeasuringPoint measuringPoint = (MeasuringPoint) object;
             if (measuringPoint.isSelected()) {
@@ -1327,9 +1316,7 @@ public class MainWindowController {
         extCodes[3] = new ArrayList<>();
 
         sumArray = new long[4][mpNames.size()];
-        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            createSheetHeader(workbook.getSheetAt(i), mpNames, mpCodes);
-        }
+        createSheetsHeader(workbook, mpNames, mpCodes);
         btnMake80020.setDisable(true);
         Task task = new Task<Void>() {
             @Override
@@ -1341,33 +1328,26 @@ public class MainWindowController {
                     updateProgress(1, 1); // задаем значение прогрессбара, как 1 из 1
                 }
                 else { // если пакетная обработка, то перебираем все файлы
-                    XML80020 prevXml = null;
+
+                    XML80020 xmlFirst = currentXml;
                     for (int i = 0; i < fileList.size(); i++) {
-                        prevXml = currentXml;
+                        XML80020 prevXml = currentXml;
                         if (fileList.get(i).getName().contains("80020") || fileList.get(i).getName().contains("80040")) {
                             currentXml = new XML80020(fileList.get(i));
                         } else {
                             currentXml = new XML80025(fileList.get(i));
                         }
-                        currentXml.loadDataFromXML();
                         copySelectedProperty(prevXml, currentXml);
                         xmlDataToXls(workbook, i);  // передаем workbook и индекс файла в списке файлов, индекс
                                                     // нужен  для формирования номеров строк в excel
                         updateProgress(i + 1, fileList.size()); // обновляем значение прогрессбара
                     }
-
-                    // после пакетной обработки всех файлов делаем "текущим" первый в списке
-                    if (fileList.get(0).getName().contains("80020") || fileList.get(0).getName().contains("80040")) {
-                        currentXml = new XML80020(fileList.get(0));
-                    } else {
-                        currentXml = new XML80025(fileList.get(0));
-                    }
-                    currentXml.loadDataFromXML();
-                    copySelectedProperty(prevXml, currentXml);
+                    // текущему xml-файлу возращаем данные первого файла в списке (он является "выделенным" в списке)
+                    currentXml = xmlFirst;
                 }
-
-                // выводим суммы значений по столбцам и коды ТИ на которые произошло срабатывание обх. переключателя
+                // выводим суммы значений по столбцам
                 sumArrayToSheet(workbook, sumArray);
+                // выводим коды ТИ, на которые сработал обх. выключатель
                 mpCodesToSheet(workbook);
                 // делаем акт. первый лист книги
                 workbook.setActiveSheet(0);
@@ -1399,6 +1379,7 @@ public class MainWindowController {
                         FileOutputStream fos = new FileOutputStream(file);
                         workbook.write(fos);
                         workbook.close();
+                        wb.close();
                         fos.close();
                     } catch (IOException e) {
                         messageWindow.showModalWindow("Ошибка", "Не удается сохранить файл " + file.getName() +
@@ -1415,27 +1396,28 @@ public class MainWindowController {
         thread.start();
     }
 
-    private void mpCodesToSheet(XSSFWorkbook workbook) {
+    // метод выводит коды ТИ, на которые сработал обх. выключатель и ставит гиперссылки на них
+    private void mpCodesToSheet(SXSSFWorkbook workbook) {
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-            XSSFSheet sheet = workbook.getSheetAt(i);
+            SXSSFSheet sheet = workbook.getSheetAt(i);
             int rowNum = sheet.getLastRowNum() + 2;
-            int k = 0;
             for (int j = 0; j < extCodes[i].size(); j++) {
-                XSSFCell cell = extCodes[i].get(j);
-                XSSFRow row = sheet.createRow(rowNum + k);
-                XSSFCell codeCell = row.createCell(2);
-                codeCell.setCellValue(cell.getStringCellValue());
+                //SXSSFCell cell = extCodes[i].get(j);
+                SXSSFRow row = sheet.createRow(rowNum + j);
+                SXSSFCell codeCell = row.createCell(2);
+                codeCell.setCellValue(extCodes[i].get(j).getStringCellValue());
 
-                ExcelUtil.setCellFont(codeCell, IndexedColors.fromInt(cell.getCellStyle().getFont().getColor()),
-                        false, false, true, false);
-                k++;
                 Hyperlink href = workbook.getCreationHelper().createHyperlink(HyperlinkType.DOCUMENT);
-                href.setAddress(cell.getReference());
+                int columnIndex = extCodes[i].get(j).getColumnIndex();
+                CellReference cellRef = new CellReference(1, columnIndex);
+                href.setAddress(cellRef.formatAsString());
                 codeCell.setHyperlink(href);
             }
         }
     }
 
+    // метод устанавливает свойство selected ТИ и каналов объекта dest в соотв. с теми же значениями
+    // что и у объета source
     private static void copySelectedProperty(XML80020 source, XML80020 dest) {
         for (int i = 0; i < source.getAreaList().size(); i++) {
             for (int j = 0; j < source.getAreaList().get(i).getMeasPointList().size(); j++) {
@@ -1445,65 +1427,52 @@ public class MainWindowController {
         }
     }
 
-    private void xmlDataToXls(XSSFWorkbook workbook, int fileNum) {
+    // метод преобразует строку str в число и возвращает его, если не получается, то возвращает 0
+    private int strToInt (String str) {
+        int val;
+        try {
+            val = Integer.parseInt(str);
+        }
+        catch (NumberFormatException e)
+        {
+            val = 0;
+        }
+        return val;
+    }
+
+    // метод переносит значения из currentXml в книгу workbook используя порядковый номер файла
+    private void xmlDataToXls(SXSSFWorkbook workbook, int fileNum) {
         int columnNum = 0;
         int pointNum = 0;
         for (int z = 0; z < currentXml.getAreaList().size(); z++) {
             for (int i = 0; i < currentXml.getAreaList().get(z).getMeasPointList().size(); i++) {
                 if (currentXml.getAreaList().get(z).getMeasPointList().get(i).isSelected()) {
+                    List<MeasuringChannel> measChannelList = currentXml.getAreaList().get(z).getMeasPointList().get(i).
+                            getMeasChannelList();
+                    for (int j = 0; j < measChannelList.size(); j++) {
+                        String aliasChannelName = measChannelList.get(j).getAliasName();
+                        Period[] periods = measChannelList.get(j).getPeriodList().toArray(new Period[measChannelList.
+                                get(j).getPeriodList().size()]);
 
-                    NodeList measChanNodeList = currentXml.getAreaList().get(z).getMeasPointNodeList().get(i).
-                            getChildNodes();
-                    for (int j = 0; j < measChanNodeList.getLength(); j++) {
-                        String aliasChannelName = currentXml.getAreaList().get(z).getMeasPointList().get(i).
-                                getMeasChannelList().get(j).getAliasName();
-                        Element measChannel = (Element) measChanNodeList.item(j);
-                        NodeList periodsNodeList = measChannel.getElementsByTagName("period");
-                        Period30Min[] periods = new Period30Min[periodsNodeList.getLength()];
-                        for (int k = 0; k < periodsNodeList.getLength(); k++) {
-                            try {
-                                periods[k] = new Period30Min();
-                                periods[k].setStart(periodsNodeList.item(k).getAttributes().
-                                        getNamedItem("start").getNodeValue());
-                                periods[k].setEnd(periodsNodeList.item(k).getAttributes().
-                                        getNamedItem("end").getNodeValue());
-                                periods[k].setValue(Integer.parseInt(periodsNodeList.item(k).getChildNodes().
-                                        item(0).getTextContent()));
-                                Node statusAttr = periodsNodeList.item(k).getChildNodes().item(0).
-                                        getAttributes().getNamedItem("status");
-                                if (statusAttr != null)
-                                    periods[k].setStatus(statusAttr.getNodeValue());
-                                Node extStatusAttr = periodsNodeList.item(k).getChildNodes().item(0).
-                                        getAttributes().getNamedItem("extendedstatus");
-                                if (extStatusAttr != null) {
-                                    periods[k].setExtendedstatus(extStatusAttr.getNodeValue());
-                                    if (periods[k].getExtendedstatus().equals("1114"))
-                                        periods[k].setParam1(periodsNodeList.item(k).getChildNodes().item(0).
-                                                getAttributes().getNamedItem("param1").getNodeValue());
-                                }
-                            } catch (NumberFormatException e) {
-                                periods[k].setValue(0);
-                            }
-                        }
                         mcValuesToSheet(workbook, fileNum, currentXml.getDateTime().getDay(), aliasChannelName,
                                 columnNum, periods);
 
                         switch (aliasChannelName) {
-                            case activeInput:
-                                sumArray[0][pointNum] += Arrays.stream(periods).
-                                        mapToLong(Period30Min::getValue).sum();
+                            case ACTIVE_INPUT:
+                                sumArray[0][pointNum] += Arrays.stream(periods).mapToLong(p ->
+                                        strToInt(p.getValue())).sum();
                                 break;
-                            case activeOutput:
-                                sumArray[1][pointNum] += Arrays.stream(periods).
-                                        mapToLong(Period30Min::getValue).sum();
+                            case ACTIVE_OUTPUT:
+                                sumArray[1][pointNum] += Arrays.stream(periods).mapToLong(p ->
+                                        strToInt(p.getValue())).sum();
                                 break;
-                            case reactiveInput:
-                                sumArray[2][pointNum] += Arrays.stream(periods).
-                                        mapToLong(Period30Min::getValue).sum();
+                            case REACTIVE_INPUT:
+                                sumArray[2][pointNum] += Arrays.stream(periods).mapToLong(p ->
+                                        strToInt(p.getValue())).sum();
                                 break;
-                            case reactiveOutput:
-                                sumArray[3][pointNum] += Arrays.stream(periods).
-                                        mapToLong(Period30Min::getValue).sum();
+                            case REACTIVE_OUTPUT:
+                                sumArray[3][pointNum] += Arrays.stream(periods).mapToLong(p ->
+                                        strToInt(p.getValue())).sum();
                                 break;
                         }
                     }
@@ -1514,26 +1483,27 @@ public class MainWindowController {
         }
     }
 
-    //
-    private void sumArrayToSheet(Workbook workbook, long sumArray[][]) {
+    // метод выводит в книге на каждом листе суммы значений по столбцам
+    private void sumArrayToSheet(SXSSFWorkbook workbook, long sumArray[][]) {
         for (int i = 0; i < sumArray.length; i++) {
-            Sheet sheet = workbook.getSheetAt(i);
+            SXSSFSheet sheet = workbook.getSheetAt(i);
             int rowSum = sheet.getLastRowNum() + 1;
-            Row row = sheet.createRow(rowSum);
+            SXSSFRow row = sheet.createRow(rowSum);
             for (int j = 0; j < sumArray[i].length; j++) {
-                XSSFCell cell = (XSSFCell) row.createCell(2 + j);
+                SXSSFCell cell = row.createCell(2 + j);
                 cell.setCellValue(sumArray[i][j]);
-                ExcelUtil.setCellFont(cell, IndexedColors.BLACK, true, false, false, true);
+                cell.setCellStyle(boldFontStyle);
             }
+
         }
     }
 
     // принамает книгу excel, поряд. номер файла, дату, алиасное имя канала, поряд. номер ТИ из списка, массив
     // значений в канале (48 получасовок) и формирует даныые в книге excel
-    private void mcValuesToSheet(XSSFWorkbook workbook, int fileNum, String day, String aliasChannelName,
-                                 int columnNum, Period30Min[] periods) {
+    private void mcValuesToSheet(SXSSFWorkbook workbook, int fileNum, String day, String aliasChannelName,
+                                 int columnNum, Period[] periods) {
         // по алиасному имени узнаем, в какой лист выводить данные
-        XSSFSheet sheet = workbook.getSheet(aliasChannelName);
+        SXSSFSheet sheet = workbook.getSheet(aliasChannelName);
         String period;
 
         int z; // делитель временных интервалов: 1 (30 мин) или 2 (для 60 мин)
@@ -1543,7 +1513,7 @@ public class MainWindowController {
             z = 2;
 
         for (int i = 0; i < periods.length; i++) {
-            Row row = sheet.getRow(2 + (i / z) + (fileNum * (periods.length / z)));
+            SXSSFRow row = sheet.getRow(2 + (i / z) + (fileNum * (periods.length / z)));
             if (row == null)
                 row = sheet.createRow(2 + (i / z) + (fileNum * (periods.length / z)));
             // в первый столбец каждой строки выводится дата
@@ -1570,38 +1540,38 @@ public class MainWindowController {
             else {
                 row.createCell(1).setCellValue((i / z) + 1);
             }
-
+            int value;
+            try {
+                value = Integer.parseInt(periods[i].getValue());
+            } catch (NumberFormatException e) {
+                value = 0;
+            }
             if (row.getCell(2 + columnNum) == null)
-                row.createCell(2 + columnNum).setCellValue(periods[i].getValue());
+                row.createCell(2 + columnNum).setCellValue(value);
             else {
                 int prevValue = (int) row.getCell(2 + columnNum).getNumericCellValue();
-                row.getCell(2 + columnNum).setCellValue(periods[i].getValue() + prevValue);
+                row.getCell(2 + columnNum).setCellValue(value + prevValue);
             }
 
             // если инф. некоммер., то шрифт - красный толстый курсив
-            if (periods[i].getStatus().equals("1"))
-                ExcelUtil.setCellFont((XSSFCell) row.getCell(2 + columnNum), IndexedColors.RED, true, true,
-                        false, false);
+            if (periods[i].getStatus() != null && periods[i].getStatus().equals("1"))
+               row.getCell(2 + columnNum).setCellStyle(redTextStyle);
 
             // если есть extendedstatus (сработал обх. выключатель), то помечаем это значение
-            if (periods[i].getExtendedstatus() != null && periods[i].getExtendedstatus().equals("1114")) {
+            if (periods[i].getExtendedStatus() != null && periods[i].getExtendedStatus().equals("1114")) {
                 if (row.getCell(2 + columnNum).getCellComment() == null)
                     ExcelUtil.setCellComment(row.getCell(2 + columnNum), periods[i].getParam1());
-                XSSFRow rowCode = sheet.getRow(1);
 
-                for (int j = 2; j < rowCode.getLastCellNum(); j++) {
-                    if (rowCode.getCell(j).getStringCellValue().equals(periods[i].getParam1())) {
-                        if (!extCodes[workbook.getSheetIndex(sheet)].contains(rowCode.getCell(j)))
-                            extCodes[workbook.getSheetIndex(sheet)].add((XSSFCell)rowCode.getCell(j));
-                        int rowCodeColor = rowCode.getCell(j).getCellStyle().getFont().getColor();
-                        ExcelUtil.setCellFont((XSSFCell) row.getCell(2 + columnNum), IndexedColors.fromInt(rowCodeColor),
-                                false, false, false, false);
+                for (int j = 2; j < headerCodesRow.getLastCellNum(); j++) {
+                    if (headerCodesRow.getCell(j).getStringCellValue().equals(periods[i].getParam1())) {
+                        if (!extCodes[workbook.getSheetIndex(sheet)].contains(headerCodesRow.getCell(j)))
+                            extCodes[workbook.getSheetIndex(sheet)].add(headerCodesRow.getCell(j));
+
                         Cell cell = row.getCell(j);
                         if (cell == null) {
                             cell = row.createCell(j);
                         }
-                        ExcelUtil.setCellColorAndFontColor((XSSFCell) cell, IndexedColors.fromInt(rowCodeColor),
-                                IndexedColors.BLACK);
+                        cell.setCellStyle(boldAndFillStyle);
                         break;
                     }
 
@@ -1611,61 +1581,62 @@ public class MainWindowController {
     }
 
     // метод выводит "шапку" из имени и кода ТИ на переданном листе
-    private static void createSheetHeader(XSSFSheet sheet, List<String> names, List<String> codes) {
-        // получаем по листу саму книгу excel
-        XSSFWorkbook wb = sheet.getWorkbook();
-        // создаем стиль ячейки: верт. и гориз. выравнивание по центру и тонкие границы
-        CellStyle borderStyle = wb.createCellStyle();
-        borderStyle.setBorderBottom(BorderStyle.THIN);
-        borderStyle.setBorderLeft(BorderStyle.THIN);
-        borderStyle.setBorderRight(BorderStyle.THIN);
-        borderStyle.setBorderTop(BorderStyle.THIN);
-        borderStyle.setAlignment(HorizontalAlignment.CENTER);
-        borderStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-        // создаем строки для имен  и кодов
-        Row rowName = sheet.createRow(0);
-        Row rowCode = sheet.createRow(1);
-        // создаем ячейки
-        rowName.createCell(0).setCellValue("Дата");
-        rowName.createCell(1).setCellValue("Время");
-        // устанавливаем стили для ячеек Дата и Время
-        sheet.getRow(0).getCell(0).setCellStyle(borderStyle);
-        sheet.getRow(0).getCell(1).setCellStyle(borderStyle);
-        // создаем ячейки под "Дата" и "Время" и устанавливаем стили для них
-        rowCode.createCell(0);
-        rowCode.createCell(1);
-        rowCode.getCell(0).setCellStyle(borderStyle);
-        rowCode.getCell(1).setCellStyle(borderStyle);
-        // объединяем ячейки "Дата" и "Время" с теми, что под ними
-        sheet.addMergedRegion(new CellRangeAddress(0, 1, 0, 0));
-        sheet.addMergedRegion(new CellRangeAddress(0, 1, 1, 1));
+    private static void createSheetsHeader(SXSSFWorkbook workbook, List<String> names, List<String> codes) {
         // создаем стиль для ячеек с именем ТИ
-        CellStyle fillAndBorderStyle = wb.createCellStyle();
-        fillAndBorderStyle.setBorderBottom(BorderStyle.THIN);
-        fillAndBorderStyle.setBorderLeft(BorderStyle.THIN);
-        fillAndBorderStyle.setBorderRight(BorderStyle.THIN);
-        fillAndBorderStyle.setBorderTop(BorderStyle.THIN);
-        fillAndBorderStyle.setAlignment(HorizontalAlignment.CENTER);
-        fillAndBorderStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-        fillAndBorderStyle.setWrapText(true);
-        XSSFFont font = wb.createFont();
-        font.setFontHeight(9);
-        fillAndBorderStyle.setFont(font);
-        //fillAndBorderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        //fillAndBorderStyle.setFillPattern(FillPatternType.DIAMONDS);
-        // создаем ячейки с именами и кодами ТИ и применяем стили к ним
-        for (int i = 0; i < names.size(); i++) {
-            sheet.setColumnWidth(2 + i, 4200);
-            rowName.createCell(2 + i).setCellValue(names.get(i));
-            rowName.setHeightInPoints(40);
+        CellStyle[] fillAndBorderStyle = new CellStyle[colors.length];
+        for (int i = 0; i < fillAndBorderStyle.length; i++) {
+            fillAndBorderStyle[i] = workbook.createCellStyle();
+            fillAndBorderStyle[i].setBorderBottom(BorderStyle.THIN);
+            fillAndBorderStyle[i].setBorderLeft(BorderStyle.THIN);
+            fillAndBorderStyle[i].setBorderRight(BorderStyle.THIN);
+            fillAndBorderStyle[i].setBorderTop(BorderStyle.THIN);
+            fillAndBorderStyle[i].setAlignment(HorizontalAlignment.CENTER);
+            fillAndBorderStyle[i].setVerticalAlignment(VerticalAlignment.CENTER);
+            fillAndBorderStyle[i].setWrapText(true);
 
-            rowCode.createCell(2 + i).setCellValue(codes.get(i));
-            rowName.getCell(2 + i).setCellStyle(fillAndBorderStyle);
-            rowCode.getCell(2 + i).setCellStyle(borderStyle);
-            ExcelUtil.setCellFont((XSSFCell) rowCode.getCell(2 + i),
-                    IndexedColors.fromInt(colorNums[i % colorNums.length]),
-                    false, false, false, true);
+            // создаем шрифт и применяем его к стилю
+            org.apache.poi.ss.usermodel.Font font = workbook.createFont();
+            font.setFontHeight((short)180);
+            //font.setBold(true);
+            fillAndBorderStyle[i].setFont(font);
+            fillAndBorderStyle[i].setFillForegroundColor(colors[i].getIndex());
+            fillAndBorderStyle[i].setFillPattern(FillPatternType.SOLID_FOREGROUND);
         }
+        Row rowName;
+        SXSSFRow rowCode = null;
+        // со всеми листами книги делаем следующее
+        for (int k = 0; k < workbook.getNumberOfSheets(); k++) {
+            SXSSFSheet sheet = workbook.getSheetAt(k);
+            // создаем строки для имен  и кодов
+            rowName = sheet.createRow(0);
+            rowCode = sheet.createRow(1);
+            // создаем ячейки
+            rowName.createCell(0).setCellValue("Дата");
+            rowName.createCell(1).setCellValue("Время");
+            // устанавливаем стили для ячеек Дата и Время
+            sheet.getRow(0).getCell(0).setCellStyle(boldAndBorderStyle);
+            sheet.getRow(0).getCell(1).setCellStyle(boldAndBorderStyle);
+            // создаем ячейки под "Дата" и "Время" и устанавливаем стили для них
+            rowCode.createCell(0);
+            rowCode.createCell(1);
+            rowCode.getCell(0).setCellStyle(boldAndBorderStyle);
+            rowCode.getCell(1).setCellStyle(boldAndBorderStyle);
+            // объединяем ячейки "Дата" и "Время" с теми, что под ними
+            sheet.addMergedRegion(new CellRangeAddress(0, 1, 0, 0));
+            sheet.addMergedRegion(new CellRangeAddress(0, 1, 1, 1));
+
+            // создаем ячейки с именами и кодами ТИ и применяем стили к ним
+            for (int i = 0; i < names.size(); i++) {
+                sheet.setColumnWidth(2 + i, 4200);
+                rowName.createCell(2 + i).setCellValue(names.get(i));
+                rowName.setHeightInPoints(40);
+
+                rowCode.createCell(2 + i).setCellValue(codes.get(i));
+                rowName.getCell(2 + i).setCellStyle(fillAndBorderStyle[k]);
+                rowCode.getCell(2 + i).setCellStyle(boldAndBorderStyle);
+            }
+        }
+        headerCodesRow = rowCode;
     }
 
     // создание xml- файла (вызывается при нажатии на кнопку "Создать макет XML")
@@ -1750,7 +1721,6 @@ public class MainWindowController {
                         messNumber = Integer.toString(num);
                         XML80020 xmlTemp = currentXml;
                         currentXml = new XML80020(file);
-                        currentXml.loadDataFromXML();
                         for (int i = 0; i < currentXml.getAreaList().size(); i++) {
                             Area area = currentXml.getAreaList().get(i);
                             for (int j = 0; j < area.getMeasPointList().size(); j++) {
@@ -1834,17 +1804,17 @@ public class MainWindowController {
         String name = comboBoxAreaName.getValue();
         for (int i = 0; i < subjectNodeList.getLength(); i++) {
             if (aiis.equals("") || name == null || name.equals("")) {
-                XmlClass.messageWindow.showModalWindow("Внимание", "Имя контрагента и " +
+                ServiceUtil.messageWindow.showModalWindow("Внимание", "Имя контрагента и " +
                         "его код не должны быть пустыми!", Alert.AlertType.INFORMATION);
                 return;
             }
             if (subjectNodeList.item(i).getAttributes().getNamedItem("code").getNodeValue().equals(aiis)) {
-                XmlClass.messageWindow.showModalWindow("Внимание", "Контрагент с таким кодом АИИС уже " +
+                ServiceUtil.messageWindow.showModalWindow("Внимание", "Контрагент с таким кодом АИИС уже " +
                         "существует. Сохраните его под другим кодом!", Alert.AlertType.INFORMATION);
                 return;
             }
             if (subjectNodeList.item(i).getAttributes().getNamedItem("name").getNodeValue().equals(name)) {
-                XmlClass.messageWindow.showModalWindow("Внимание", "Контрагент с таким именем уже " +
+                ServiceUtil.messageWindow.showModalWindow("Внимание", "Контрагент с таким именем уже " +
                         "существует. Сохраните его под другим названием!", Alert.AlertType.INFORMATION);
                 return;
             }
@@ -1995,6 +1965,5 @@ public class MainWindowController {
                 }
             }
         }
-
     }
 }

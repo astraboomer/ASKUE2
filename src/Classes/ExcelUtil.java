@@ -1,9 +1,8 @@
 package Classes;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
-import org.apache.poi.xssf.usermodel.XSSFFont;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ExcelUtil {
 
@@ -18,7 +17,27 @@ public class ExcelUtil {
         cell.setCellStyle(style);
     }
 
-    public static void setCellFont (XSSFCell cell, IndexedColors fontColor, boolean isBold, boolean isItalic,
+    public static void setCellFont (SXSSFCell cell, IndexedColors fontColor, boolean isBold, boolean isItalic,
+                                    boolean isUnderline, boolean needBorder) {
+        Workbook wb = cell.getRow().getSheet().getWorkbook();
+        CellStyle style = wb.createCellStyle();
+        Font font = wb.createFont();
+        font.setColor(fontColor.getIndex());
+        font.setBold(isBold);
+        font.setItalic(isItalic);
+        if (isUnderline)
+            font.setUnderline(Font.U_SINGLE);
+        style.setFont(font);
+        if (needBorder) {
+            style.setBorderBottom(BorderStyle.THIN);
+            style.setBorderLeft(BorderStyle.THIN);
+            style.setBorderRight(BorderStyle.THIN);
+            style.setBorderTop(BorderStyle.THIN);
+        }
+        cell.setCellStyle(style);
+    }
+
+    public static void setCellFont (Cell cell, IndexedColors fontColor, boolean isBold, boolean isItalic,
                                     boolean isUnderline, boolean needBorder) {
         Workbook wb = cell.getRow().getSheet().getWorkbook();
         CellStyle style = wb.createCellStyle();

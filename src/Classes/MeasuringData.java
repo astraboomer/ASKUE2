@@ -31,8 +31,11 @@ public class MeasuringData {
 
     public MeasuringData(String time, String value, String typeInfo) {
         this.timeInterval = time;
+        if (typeInfo != null)
+            this.typeInfo = typeInfo;
+        else
+            this.typeInfo = "0";
         this.value = value;
-        this.typeInfo = typeInfo;
     }
 
 }

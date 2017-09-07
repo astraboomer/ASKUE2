@@ -1,7 +1,7 @@
 <component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="ASKUE">
-    <output-path>$PROJECT_DIR$/out/artifacts/ASKUE</output-path>
-    <root id="archive" name="ASKUE.jar">
+  <artifact type="jar" build-on-make="true" name="ASKUE2">
+    <output-path>$PROJECT_DIR$/out/artifacts/ASKUE2</output-path>
+    <root id="archive" name="ASKUE2.jar">
       <element id="module-output" name="ASKUE" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/poi-3.16.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/xmlbeans-2.6.0.jar" path-in-jar="/" />

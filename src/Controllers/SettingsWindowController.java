@@ -1,6 +1,5 @@
 package Controllers;
 
-import Classes.Main;
 import Classes.XmlUtil;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -16,7 +15,7 @@ import java.io.*;
 import java.nio.file.Files;
 
 import static Classes.Main.slash;
-import static Classes.XmlClass.messageWindow;
+import static Classes.ServiceUtil.messageWindow;
 import static Controllers.MainWindowController.*;
 
 /**

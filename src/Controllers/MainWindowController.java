@@ -1402,6 +1402,7 @@ public class MainWindowController {
             SXSSFSheet sheet = workbook.getSheetAt(i);
             int rowNum = sheet.getLastRowNum() + 2;
             for (int j = 0; j < extCodes[i].size(); j++) {
+                //SXSSFCell cell = extCodes[i].get(j);
                 SXSSFRow row = sheet.createRow(rowNum + j);
                 SXSSFCell codeCell = row.createCell(2);
                 codeCell.setCellValue(extCodes[i].get(j).getStringCellValue());
